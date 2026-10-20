@@ -1,0 +1,12 @@
+**/bin/
+**/obj/
+**/dist/
+build/
+*.log
+*.sss
+*.es3
+*.bak
+*.tmp
+SaveBackups/
+BepInEx/config/
+PluginConfigs/

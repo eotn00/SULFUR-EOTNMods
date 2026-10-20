@@ -1,0 +1,4 @@
+59ed66128ac5c111f0388de75b4caa32ba0b438acf20bf6ab5975ce537e87619  plugins/?rpg???.dll
+f901ea1dfe3895706f9269db0e253447b1ae2e37edf7daa9ee0e0aed0b3168bc  plugins/ChurchStashCrafting.dll
+dd379845d510805704214a61a2dbf0fa696295a57a6dca4ab9124826ee97ecc8  plugins/SaveCompatibilityFix.dll
+6004d4fce9d7306492d56c29dec4d914f31399905612837f68435d821aec609f  releases/SULFUR-EOTNMods-2026.10.20.zip
