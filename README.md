@@ -6,13 +6,13 @@ EOTN为火湖制作的mod存放地：更 RPG 的火湖与实用 Mod。
 
 | Mod | 版本 | 插件文件 |
 | --- | --- | --- |
-| 更rpg的火湖 | 2.0.0 | `更rpg的火湖.dll` |
+| 更RPG的火湖 / More RPG Sulfur | 3.0.1 | `更rpg的火湖.dll` |
 | 存档兼容修复 | 1.0.0 | `SaveCompatibilityFix.dll` |
 | 教堂仓库制作 | 1.0.0 | `ChurchStashCrafting.dll` |
 
 ## 下载与安装
 
-下载 [`releases/SULFUR-EOTNMods-2026.10.20.zip`](releases/SULFUR-EOTNMods-2026.10.20.zip)，或从 [`plugins/`](plugins/) 获取需要的 DLL。
+更RPG的火湖最新版：[`MoreRPGSulfur-3.0.1.zip`](releases/MoreRPGSulfur-3.0.1.zip)。另外两个插件可从 [`plugins/`](plugins/) 单独获取。旧版合集仍保留为历史版本，不要与最新版 RPG 重复安装。
 
 1. 安装 BepInEx 5，以及所选插件需要的第三方 Mod。
 2. **正常保存并退出游戏，备份整个存档目录及插件配置。** 默认存档位于 `%USERPROFILE%/AppData/LocalLow/Perfect Random/Sulfur/`。
@@ -21,18 +21,23 @@ EOTN为火湖制作的mod存放地：更 RPG 的火湖与实用 Mod。
 
 已在 SULFUR 0.19.10、BepInEx 5.4.23.5 的本地环境验证。插件依赖当前游戏和第三方 Mod 的内部接口，不能保证兼容其他版本；更新前请备份。
 
-## 更rpg的火湖
+## 更RPG的火湖 / More RPG Sulfur 3.0.1
 
-- 每把有效枪械生成独立编号和五项初始随机属性，可增益也可减益。
+- 枪械六维随机属性：伤害、射速、换弹、精准、控枪和最大耐久；旧五维记录补零耐久维度，不重抽。
 - 每升一级随机提升 1 至 2 项属性，保存逐级记录，读档不重抽。
 - 武器详情显示初始词条、累计升级收益和逐级历史。
 - 编号与属性记录随武器保存。首次迁移现有武器时会创建迁移计划与备份。
+- 护甲和饰品支持六档品质，以及精良/史诗/传奇的 1/2/3 条额外词条；原有正负属性按有益方向处理。
+- 枪械与装备功能合并在一个插件中，可以分别开关；支持中文与英文界面，以及品质名称着色。
+- **3.0.1 修复：魅力参与品质浮动。** 已有装备只追加缺少的魅力记录，保留编号、品质、其他浮动和额外词条；不加强侦探烟斗的时间效果。
 
-依赖原“武器拓展/武器位阶”Mod 提供的位阶与经验系统；它不改变经验曲线。设置页使用现有 OptionsScreen 设置插件。
+Firearms receive six birth rolls and random per-rank growth. Armor and accessories receive six quality tiers and additional affixes. Both modules can be toggled independently and support Chinese and English. Version 3.0.1 fixes missing Charisma quality adjustments without rerolling existing IDs, quality or affixes. The Detective Pipe's time effect is unchanged.
 
-升级时移除旧 `RankBonuses.dll`、`SingleWeaponSaveTest.dll` 和旧名称 `RandomWeaponProgression.dll`，避免重复加成。保留 `BepInEx/config/RandomWeaponProgression/` 的迁移状态，恢复旧存档时同时恢复相应状态。
+枪械升级使用原“武器拓展/武器位阶”Mod 提供的位阶与经验系统，本插件不改变经验曲线。OptionsScreen 设置插件只提供游戏内设置页；没有它仍可使用 Mod 并编辑配置文件。
 
-详情：[武器成长说明](src/RandomWeaponProgression/README.md)。
+升级时移除旧独立 `EquipmentQualityTest.dll`、`RankBonuses.dll`、`SingleWeaponSaveTest.dll` 和旧名称 `RandomWeaponProgression.dll`，替换旧主插件，只保留一份 RPG DLL。保留 `BepInEx/config/RandomWeaponProgression/` 和 `BepInEx/config/EquipmentQuality/` 的迁移状态，恢复旧存档时同时恢复相应状态。统一配置为 `BepInEx/config/local.sulfur.randomweaponprogression.cfg`。
+
+最新版双语详情、默认数值及存档策略：[3.0.1 说明](MoreRPGSulfur-3.0.1-README.txt)。历史 [2.0 武器成长说明](src/RandomWeaponProgression/README.md) 仅供旧版参考。
 
 ## 存档兼容修复
 

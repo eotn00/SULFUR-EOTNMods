@@ -1,0 +1,67 @@
+更RPG的火湖 / More RPG Sulfur 3.0.1 - CHARISMA FIX
+
+3.0.1 更新：魅力属性现在参与品质浮动。已有装备只追加漏掉的魅力浮动，按已保存品质生成并保存，不重抽编号、品质、其他属性或额外词条。侦探烟斗时间效果不修改。中文与英文界面均支持。
+3.0.1: Charisma now participates in quality-based stat adjustments. Existing equipment gains only its missing Charisma roll, based on its saved tier, without rerolling IDs, quality, prior stats or affixes. The Detective Pipe's time effect is unchanged. Chinese and English UI are supported.
+
+这是本地测试版，尚未完成全部游戏内验证。请先备份存档。
+This is a local test build. Live gameplay validation is still required. Back up saves first.
+
+安装 / Installation
+只安装一个插件：BepInEx/plugins/更RPG的火湖.dll。移走旧的 EquipmentQualityTest.dll，并替换旧的 更rpg的火湖.dll，不要在其他子目录保留副本。
+Install only BepInEx/plugins/更RPG的火湖.dll. Remove the old standalone EquipmentQualityTest.dll and replace the old weapon DLL. Do not keep duplicate plugin copies in subfolders.
+设置统一在“更RPG的火湖”中，分枪械属性与装备属性两部分，可以分别开关。关闭只暂停效果，保留编号、品质、词条和升级记录；开启后恢复。
+One settings category, More RPG Sulfur, with Firearm Stats and Equipment Stats sections and independent toggles. Disabling pauses effects without deleting saved IDs, rolls, affixes or history.
+配置统一使用 BepInEx/config/local.sulfur.randomweaponprogression.cfg。首次合并时读取旧装备配置作为初始值，不覆盖已经存在的统一配置。
+Unified config: BepInEx/config/local.sulfur.randomweaponprogression.cfg. Old equipment config values are imported as initial defaults on first merge; existing unified values are preserved.
+Requires BepInEx 5 and the original game's managed runtime. In-game configuration requires OptionsScreen Settings.
+保留附魔耐久修复、存档兼容修复、堆叠、大背包和大仓库插件，不要删除。
+Keep existing durability/save compatibility/stacking/backpack/stash plugins.
+
+装备 / Equipment
+六档品质：破损、普通、优质、精良、史诗、传奇。
+Damaged/Common/Fine/Superior/Epic/Legendary.
+原属性默认：削弱10-30% / 不变 / 增强5-10% / 10-20% / 20-35% / 35-50%。
+Default original-effect changes: -10..30% / unchanged / +5..10% / +10..20% / +20..35% / +35..50%.
+精良/史诗/传奇额外词条1/2/3条。默认词条倍率1/1.2/1.5；跳跃次数与幸运每条固定+1。
+Superior/Epic/Legendary have 1/2/3 affixes, strength scales 1/1.2/1.5. Extra Jump and Lucky remain +1 per roll.
+默认品质权重40/25/20/10/4/1，可在游戏内“装备品质与词条”中调整权重、浮动区间、词条区间、品质倍率和养护上限。
+Default rarity weights: 40/25/20/10/4/1. Configure weights, ranges, affix strength and wear cap in Equipment Quality and Affixes.
+普通不改变原属性。上下限颠倒时实际最大值取至少等于最小值；所有权重为0时回退普通。
+Common never changes original effects. Effective maximum is at least minimum; zero total rarity weight falls back to Common.
+允许重复词条，没有传奇专属池。词条部位限制仍保留，精通先抽类别再抽子类，包含全枪械和近战增伤。
+Duplicate affixes are allowed. No legendary-exclusive pool. Slot restrictions remain; Mastery includes All Weapons (guns and melee).
+养护仅在装备有效且装备属性开关开启时降低枪械与护甲实际扣除耐久量，默认总减耗封顶80%，兼容附魔耐久修复；不降低正向维修收益，不影响无耐久饰品。
+Preservation reduces actual firearm and armor wear while active equipment effects are enabled, capped at 80% by default. Compatible with the enchantment wear fix. Positive repairs and durability-free accessories are unaffected.
+有耐久的护甲最大耐久也按品质区间独立浮动：破损降低、普通不变、优质及以上提高。已有护甲仅补耐久维度，不重抽原品质和词条；提高上限不自动维修，降低上限时截断超过上限的当前耐久。
+Durable armor gains an independent quality-based maximum-durability roll. Existing armor gains only this saved dimension, retaining all other rolls. A higher cap does not repair; a lower cap clamps excess current durability. Passive accessories do not gain durability.
+幸运沿用原版Stat_LuckGain：每分钟幸运增长+1，不是每次穿脱直接赠送幸运值。
+Lucky follows native Stat_LuckGain: +1 luck gain per minute, not a one-time equip reward.
+
+存档 / Saves
+所有1-5号存档在首次进入时执行一次初始化；未进入的存档不主动改写。
+Slots 1-5 migrate once when entered; unopened slots are not edited.
+背包、仓库、保险和商店列表中的符合条件单件装备参与初始化。异常多件堆叠与第三方非空编号不覆盖。
+Eligible single items in inventory, stash, insured and merchant lists are initialized. Stacked equipment and foreign identifiers are left alone.
+仅为未编号的合格装备首次生成品质与词条。已有记录原样保留，不提供重抽按钮、开关或强制迁移；编号损坏时不生成替代结果。
+Only unmarked eligible equipment is initialized. Existing records are preserved. No reroll button, setting or forced migration is included; corrupt markers are not replaced.
+迁移前备份，先落盘固定随机记录，再修改存档并校验；重试不重抽。记录位于BepInEx/config/EquipmentQuality。
+Migration backs up the save, journals exact rolls first, then writes/verifies save metadata. Receipts are in BepInEx/config/EquipmentQuality.
+修改配置只影响新记录，不会重抽已有品质和词条。养护总减耗上限是运行时限制。
+Config changes affect new rolls only. The Preservation cap is a runtime limit.
+
+枪械 / Firearms
+五维扩展为六维：伤害、射速、换弹、精准、控枪、最大耐久。
+Six stats: damage, fire rate, reload, accuracy, recoil control and maximum durability.
+读取旧五维枪械时补第六维0，不修改已有六维枪械记录。新生成枪械正常随机初始最大耐久。装备插件不重置任何枪械记录。
+Old five-stat guns gain a zero sixth dimension; existing six-stat records are unchanged. New guns roll initial durability normally. The equipment plugin never resets firearm metadata.
+提高耐久上限不自动维修，降低上限时超过上限的当前耐久被截断。
+Raising the cap does not repair the gun; lowering it clamps current durability if necessary.
+
+验证 / Validation
+检查中英文界面、穿脱、损坏/维修、丢捡、箱子转移及两次保存重启；对比编号和词条是否不变。
+Check both languages, equip/unequip, break/repair, drop/pickup, stash transfers and two save/restart cycles; IDs and rolls must remain stable.
+回退前正常退出并保留备份，完整恢复测试前存档会丢失测试后进度。
+Exit normally before rollback. Restoring an older backup discards progress since that backup.
+
+代码及双语说明由EOTN提出需求并与OpenAI Codex协作制作。
+Developed by EOTN in collaboration with OpenAI Codex. No game DLLs or personal saves are bundled.

@@ -13,3 +13,6 @@ if($LASTEXITCODE -ne 0) { throw 'Compatibility tests failed' }
 $project = "$PSScriptRoot\src\RandomWeaponProgression\tests\Validation.csproj"
 dotnet run --project $project "-p:GameRoot=$GameRoot" -- "$PSScriptRoot\build\更rpg的火湖.dll" $GameRoot
 if($LASTEXITCODE -ne 0) { throw 'Weapon progression tests failed' }
+$env:SULFUR_TEST_GAME_ROOT = $GameRoot
+dotnet run --project "$PSScriptRoot\src\EquipmentQualityTest\tests\Validation.csproj" "-p:GameRoot=$GameRoot" -- "$PSScriptRoot\build\更RPG的火湖.dll"
+if($LASTEXITCODE -ne 0) { throw 'Equipment quality tests failed' }

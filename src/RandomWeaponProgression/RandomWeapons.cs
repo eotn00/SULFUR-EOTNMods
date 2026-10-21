@@ -15,14 +15,14 @@ using SulfurCustomMods;
 
 namespace SulfurRandomWeapons
 {
-    [BepInPlugin(Id, Name, "2.0.0")]
+    [BepInPlugin(Id, Name, "3.0.1")]
     [BepInDependency("com.sulfur.optionsscreen.settings", BepInDependency.DependencyFlags.SoftDependency)]
     [BepInDependency("AetharNet.Mods.EWeapon", BepInDependency.DependencyFlags.SoftDependency)]
     [HarmonyPatch]
     public sealed class RandomWeapons : BaseUnityPlugin
     {
         public const string Id = "local.sulfur.randomweaponprogression";
-        public const string Name = "更rpg的火湖";
+        public const string Name = "更RPG的火湖";
         internal static RandomWeapons Instance;
         internal static ConfigEntry<bool> Enabled;
         private static ConfigEntry<float> initialRange, upgradeMin, upgradeMax;
@@ -48,16 +48,18 @@ namespace SulfurRandomWeapons
         private void Awake()
         {
             Instance = this;
+            WeaponLanguage.Initialize();
             Enabled = Config.Bind("General", "Enabled", true, "Apply stored random firearm stats. Turning this off retains IDs and history.");
-            initialRange = Config.Bind("NewWeapons", "InitialRangePercent", 15f, new ConfigDescription("Initial independent +/- range for all five stats. Applies only to newly created records.", new AcceptableValueRange<float>(0, 50)));
+            initialRange = Config.Bind("NewWeapons", "InitialRangePercent", 15f, new ConfigDescription("Initial independent +/- range for all six stats. Applies only to newly created records.", new AcceptableValueRange<float>(0, 50)));
             upgradeMin = Config.Bind("NewWeapons", "UpgradeMinPercent", 2f, new ConfigDescription("Minimum per-rank gain, captured when each weapon record is born.", new AcceptableValueRange<float>(0.1f, 20)));
             upgradeMax = Config.Bind("NewWeapons", "UpgradeMaxPercent", 6f, new ConfigDescription("Maximum per-rank gain. Actual upper bound is at least the minimum.", new AcceptableValueRange<float>(0.1f, 20)));
-            if (BepInEx.Bootstrap.Chainloader.PluginInfos.ContainsKey("local.sulfur.weaponrankbonuses") || BepInEx.Bootstrap.Chainloader.PluginInfos.ContainsKey("local.sulfur.singleweaponsavetest"))
+            if (BepInEx.Bootstrap.Chainloader.PluginInfos.ContainsKey("local.sulfur.weaponrankbonuses") || BepInEx.Bootstrap.Chainloader.PluginInfos.ContainsKey("local.sulfur.singleweaponsavetest") || BepInEx.Bootstrap.Chainloader.PluginInfos.ContainsKey("local.sulfur.equipmentqualitytest"))
             {
-                Logger.LogError("Old RankBonuses or SingleWeaponSaveTest is active. Random Weapon Progression is not activated to prevent duplicate modifiers.");
+                Logger.LogError("An old standalone weapon/equipment plugin is active. Remove the old DLL before using the unified RPG plugin; activation stopped to prevent duplicate modifiers.");
                 return;
             }
             harmony = new Harmony(Id);
+            SulfurEquipmentQualityTest.EquipmentQualityTest.Initialize(Config,Logger);
             try
             {
                 harmony.PatchAll(Assembly.GetExecutingAssembly());
@@ -66,14 +68,11 @@ namespace SulfurRandomWeapons
             catch (Exception ex) { harmony.UnpatchSelf(); Logger.LogError("Random Weapon Progression activation failed: " + ex); return; }
             try
             {
-                var ui = new OptionsUi(Id, Name);
-                ui.Toggle("RandomWeapons_Enabled", "启用随机武器属性", Enabled, Refresh, "保留每把枪的初始词条和升级记录，关闭只暂停属性效果。");
-                ui.Slider("RandomWeapons_InitialRange", "新枪初始浮动范围 (%)", initialRange, null, 20);
-                ui.Slider("RandomWeapons_UpgradeMin", "新枪每级增益下限 (%)", upgradeMin, null, 30);
-                ui.Slider("RandomWeapons_UpgradeMax", "新枪每级增益上限 (%)", upgradeMax, null, 40);
+                WeaponLanguage.Register(Enabled, Refresh, initialRange, upgradeMin, upgradeMax);
+                SulfurEquipmentQualityTest.QualitySettings.Register(WeaponLanguage.Category);
             }
             catch (Exception ex) { Logger.LogWarning("Options UI registration failed: " + ex.Message); }
-            Logger.LogInfo(Name + " 2.0.0 loaded. Per-weapon UUIDs, persisted birth rolls and per-rank history; no load-time repair of missing records.");
+            Logger.LogInfo(Name + " 3.0.1 loaded. Charisma quality coverage fixed; existing records retain IDs, prior rolls and affixes.");
         }
         private static void Refresh()
         {

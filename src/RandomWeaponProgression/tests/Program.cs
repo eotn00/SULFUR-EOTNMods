@@ -33,7 +33,21 @@ class Program
     {
         var record = Record();
         Check(Progression.Valid(record), "birth record valid");
-        Check(record.initial.Length == 5 && record.initial.All(v => v >= -15 && v <= 15), "five signed initial rolls in range");
+        Check(record.initial.Length == 6 && record.initial.All(v => v >= -15 && v <= 15), "six signed initial rolls in range");
+        var old=Record();old.version=2;old.initial=old.initial.Take(5).ToArray();Progression.Advance(old,0);
+        // Model an actual old five-stat save and retain its seed and prior history.
+        old.version=2;old.initial=old.initial.Take(5).ToArray();
+        string oldId=old.guid;uint oldSeed=old.randomState;var oldRolls=old.initial.ToArray();
+        Check(Progression.TryDecode(Progression.Encode(old),out var oldSaved),"five-stat save accepted");
+        Progression.Advance(oldSaved,0);
+        Check(oldSaved.initial.Length==6 && oldSaved.initial[5]==0 && oldSaved.initial.Take(5).SequenceEqual(oldRolls) && oldSaved.randomState==oldSeed && oldSaved.guid==oldId,"legacy sixth stat appended as zero without reroll or seed consumption");
+        var durability=Record();durability.initial[5]=20;
+        var durabilityStats=new ItemStats();durabilityStats.SetAttributeBaseValue(ItemAttributes.MaxDurability,1000);durabilityStats.SetAttributeBaseValue(ItemAttributes.Durability,900);
+        Progression.Apply(durabilityStats,durability,true);
+        Near(durabilityStats.GetAttribute(ItemAttributes.MaxDurability),1200,"positive durability scales upward, not inverse");
+        Near(durabilityStats.GetAttribute(ItemAttributes.Durability),900,"increasing maximum does not repair current durability");
+        durability.initial[5]=-20;Progression.Apply(durabilityStats,durability,true);
+        Near(durabilityStats.GetAttribute(ItemAttributes.Durability),800,"decreasing maximum clamps current durability");
         var one = Progression.Create(919, new RollRules(), "new", ""); var two = Progression.Create(919, new RollRules(), "new", "");
         Check(one.guid != two.guid, "identical gun models get distinct UUIDs");
         string birth = Progression.Encode(record);
@@ -57,7 +71,7 @@ class Program
         for (uint seed = 1; seed <= 300; seed++)
         {
             var sample = Record(seed); Progression.Advance(sample, 15);
-            validSweep &= Progression.Valid(sample) && Enumerable.Range(0, 5).All(stat => Progression.Factor(sample, stat) > 0 && float.IsFinite(Progression.Factor(sample, stat)));
+            validSweep &= Progression.Valid(sample) && Enumerable.Range(0, 6).All(stat => Progression.Factor(sample, stat) > 0 && float.IsFinite(Progression.Factor(sample, stat)));
             negativeSeen |= sample.initial.Any(v => v < 0); positiveSeen |= sample.initial.Any(v => v > 0);
             foreach (var level in sample.upgrades) pickCounts.Add(level.gains.Count);
         }
@@ -66,6 +80,7 @@ class Program
         Check(negativeSeen && positiveSeen && bothPickCounts, "both birth signs and both upgrade pick counts occur");
         var stats = new ItemStats();
         foreach (var attr in Progression.Attributes) stats.SetAttributeBaseValue(attr, 100);
+        stats.SetAttributeBaseValue(ItemAttributes.MaxDurability,5000);
         stats.SetAttributeBaseValue(ItemAttributes.Durability, 2331); stats.SetAttributeBaseValue(ItemAttributes.Experience, 3268.6084f);
         stats.AddModifier(ItemAttributes.Damage, new StatModifier(.2f, StatModType.PercentMult, 123));
         WeaponState.Register(stats, record);
@@ -91,18 +106,36 @@ class Program
         Check(!Progression.TryDecode(Progression.Prefix + "!", out _), "invalid encoding rejected");
         var invalid = Record(); invalid.initial[0] = float.NaN; Check(!Progression.Valid(invalid), "NaN rejected");
         invalid = Record(); Progression.Advance(invalid, 1); invalid.upgrades[0].rank = 2; Check(!Progression.Valid(invalid), "gapped level history rejected");
-        var legacy = new JObject { ["version"] = 1, ["weaponGuid"] = "11111111-2222-4333-8444-555555555555", ["weaponId"] = 919, ["damagePercent"] = 10, ["originalIdentifier"] = "" };
+        var legacy = new JObject { ["version"] = 1, ["weaponGuid"] = "c8d7bf69-3ec8-49e1-b08c-46d8ac4091fa", ["weaponId"] = 919, ["damagePercent"] = 10, ["originalIdentifier"] = "" };
         string oldMarker = Progression.LegacyPrefix + Convert.ToBase64String(Encoding.UTF8.GetBytes(legacy.ToString(Formatting.None)));
         var converted = Progression.ConvertTest(oldMarker, 919, new RollRules());
         Check(converted != null && converted.guid == (string)legacy["weaponGuid"] && converted.inheritedDamage == 10, "successful trial ID and 10 percent bonus preserved");
         Check(Progression.ConvertTest(oldMarker, 988, new RollRules()) == null, "trial migration rejects wrong weapon");
-        Check(Progression.Summary(record.initial).Contains("伤害") && Progression.History(record).Contains("Lv.21"), "UI shows birth stats and every recorded level");
+        string beforeLanguageSwitch = Progression.Encode(record);
+        WeaponText.Language = () => "Chinese (Simplified)";
+        Check(Progression.Summary(record.initial).Contains("伤害") && Progression.History(record).Contains("Lv.21"), "Chinese UI shows birth stats and every recorded level");
+        WeaponText.Language = () => "English";
+        Check(Progression.Summary(record.initial).Contains("Accuracy") && !Progression.Summary(record.initial).Contains("伤害"), "English weapon summary uses English labels");
+        Check(Progression.History(record).Contains("Lv.21") && !Progression.History(record).Contains("精准"), "English history keeps every recorded rank");
+        Check(WeaponText.Pick("中文", "English") == "English", "English headings selected");
+        Check(WeaponText.IsChinese("zh-CN") && WeaponText.IsChinese("Chinese (Traditional)") && !WeaponText.IsChinese("German"), "Chinese variants detected, other languages fall back to English");
+        Check(WeaponText.Settings.Count == 8 && WeaponText.Settings.Values.All(v => v.Length == 2 && v.All(s => !string.IsNullOrEmpty(s))), "all settings have Chinese and English translations");
+        WeaponText.Language = () => "zh-TW";
+        Check(WeaponText.Pick("中文", "English") == "中文", "language changes are reflected without restart");
+        Check(Progression.Encode(record) == beforeLanguageSwitch, "language switching does not alter weapon identity, rolls, random state or save bytes");
         var cap = Record(); Progression.Advance(cap, int.MaxValue); Check(cap.upgrades.Count == Progression.MaxRank && Progression.Valid(cap), "bounded history handles large rank safely");
         Check(Progression.TryDecode(Progression.Encode(cap), out _), "maximum history fits serialization bounds");
         using var game = AssemblyDefinition.ReadAssembly(Path.Combine(args[1], "Sulfur_Data/Managed/PerfectRandom.Sulfur.Core.dll"));
         using var plugin = AssemblyDefinition.ReadAssembly(args[0]);
+        using var options = AssemblyDefinition.ReadAssembly(Path.Combine(args[1], "BepInEx/plugins/OptionsScreen设置项.dll"));
+        var registry = options.MainModule.Types.Single(t => t.Name == "ModOptionsRegistry");
+        Check(registry.Methods.Count(m => m.Name == "RegisterCategoryLoc" && m.Parameters.Count == 4) == 1, "installed options plugin supports localized category registration");
+        Check(registry.Methods.Count(m => m.Name == "AddBoolLoc" && m.Parameters.Count == 9) == 1, "installed options plugin supports localized toggles");
+        Check(registry.Methods.Count(m => m.Name == "AddSliderLoc" && m.Parameters.Count == 13) == 1, "installed options plugin supports localized sliders");
+        Check(registry.Methods.Count(m => m.Name == "AddInfoLoc" && m.Parameters.Count == 7) == 1, "installed options plugin supports both section headers");
         var patches = plugin.MainModule.Types.Where(type => type.CustomAttributes.Any(attr => attr.AttributeType.Name == "HarmonyPatch")).ToArray();
-        Check(patches.Length == 3, "runtime, constructor and description patch containers annotated");
+        Check(patches.Length == 5, "unified weapon, equipment, constructor and description patch containers annotated");
+        Check(plugin.MainModule.Types.Count(t=>t.CustomAttributes.Any(a=>a.AttributeType.Name=="BepInPlugin"))==1,"unified assembly exposes exactly one BepInEx plugin");
         foreach (var method in patches.SelectMany(type => type.Methods))
         {
             var patch = method.CustomAttributes.FirstOrDefault(attr => attr.AttributeType.Name == "HarmonyPatch");
@@ -111,7 +144,20 @@ class Program
             Check(game.MainModule.GetType(type.FullName).Methods.Any(target => target.Name == name), "game patch target " + type.Name + "." + name);
         }
         Check(plugin.MainModule.Types.Single(t => t.Name == "WeaponDescription").Methods.Any(m => m.Name == "AddWeaponInfo"), "information panel integration compiled");
-        if (args.Length > 2)
+        if (args.Length > 3 && args[2]=="--audit-save")
+        {
+            var actual=JToken.Parse(ReadGzip(args[3]));int count=0;
+            foreach(var marker in actual.SelectTokens("$..identifier").Where(t=>t.Type==JTokenType.String&&((string)t).StartsWith(Progression.Prefix)))
+            {
+                Check(Progression.TryDecode((string)marker,out var saved),"actual firearm marker decodes");
+                var previous=saved.initial.ToArray();uint seed=saved.randomState;string guid=saved.guid;string history=JsonConvert.SerializeObject(saved.upgrades);
+                Progression.Upgrade(saved);
+                Check(saved.initial.Take(previous.Length).SequenceEqual(previous)&&saved.randomState==seed&&saved.guid==guid&&JsonConvert.SerializeObject(saved.upgrades)==history,"actual old firearm rolls, seed, UUID and all history retained");
+                Check(Progression.TryDecode(Progression.Encode(saved),out _),"actual six-stat marker roundtrip valid");count++;
+            }
+            Console.WriteLine("PASS: dry-run six-stat migration of "+count+" actual firearm records; source save was not written.");
+        }
+        else if (args.Length > 2)
         {
             var original = JToken.Parse(ReadGzip(args[2])); var copy = original.DeepClone();
             var target = copy["INVENTORY"].Children().First(item => (int)item["id"]["value"] == 919 && (bool)item["equipped"]);

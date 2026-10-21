@@ -45,20 +45,20 @@ namespace SulfurRandomWeapons
                 WeaponRecord record;
                 if (!WeaponState.TryGet(item.stats, out record))
                 {
-                    Add(__instance, "<color=#F09D94>未找到武器词条记录</color>", ref childIndex);
+                    Add(__instance, "<color=#F09D94>" + WeaponText.Pick("未找到武器词条记录", "Weapon roll record not found") + "</color>", ref childIndex);
                     return;
                 }
-                string title = "<b><color=#F5BD58>初始随机属性</color></b>  <size=75%>" + record.guid.Substring(0, 8) + "</size>\n";
+                string title = "<b><color=#F5BD58>" + WeaponText.Pick("初始随机属性", "Initial Rolls") + "</color></b>  <size=75%>" + record.guid.Substring(0, 8) + "</size>\n";
                 Add(__instance, title + Progression.Summary(record.initial), ref childIndex);
-                if (record.inheritedDamage != 0) Add(__instance, "试验继承：伤害 " + Progression.Colored(record.inheritedDamage), ref childIndex);
-                Add(__instance, "<b><color=#F5BD58>升级累计 · " + record.upgrades.Count + " 级</color></b>\n" +
-                    (record.upgrades.Count == 0 ? "尚无升级收益" : Progression.Summary(Progression.Totals(record))), ref childIndex);
-                if (!RandomWeapons.Enabled.Value) Add(__instance, "<color=#F09D94>词条效果已暂停</color>", ref childIndex);
+                if (record.inheritedDamage != 0) Add(__instance, WeaponText.Pick("试验继承：伤害 ", "Legacy DMG bonus: ") + Progression.Colored(record.inheritedDamage), ref childIndex);
+                Add(__instance, "<b><color=#F5BD58>" + WeaponText.Pick("升级累计 · " + record.upgrades.Count + " 级", "Rank Gains · " + record.upgrades.Count) + "</color></b>\n" +
+                    (record.upgrades.Count == 0 ? WeaponText.Pick("尚无升级收益", "No rank gains yet") : Progression.Summary(Progression.Totals(record))), ref childIndex);
+                if (!RandomWeapons.Enabled.Value) Add(__instance, "<color=#F09D94>" + WeaponText.Pick("词条效果已暂停", "Stat effects paused") + "</color>", ref childIndex);
                 if (record.upgrades.Count > 0)
                 {
-                    Add(__instance, "<b>逐级升级记录</b>", ref childIndex);
+                    Add(__instance, "<b>" + WeaponText.Pick("逐级升级记录", "Rank History") + "</b>", ref childIndex);
                     var view = views.GetValue(__instance, description => new HistoryView((Transform)content.GetValue(description), ((ItemDescriptionText)flavor.GetValue(description)).textComp));
-                    view.Show(record, childIndex++);
+                    view.Show(record, childIndex++, ((ItemDescriptionText)flavor.GetValue(__instance)).textComp);
                 }
             }
             catch (Exception ex) { RandomWeapons.LogWarning("Weapon info rendering failed: " + ex.Message); }
@@ -116,8 +116,10 @@ namespace SulfurRandomWeapons
                 root.SetActive(false);
             }
             internal void Hide() { root.SetActive(false); }
-            internal void Show(WeaponRecord value, int sibling)
+            internal void Show(WeaponRecord value, int sibling, TextMeshProUGUI source)
             {
+                text.font = source.font;
+                text.fontSize = Math.Min(WeaponText.IsChinese(WeaponText.Language()) ? 16 : 13, source.fontSize);
                 record = value; visible = Math.Min(4, record.upgrades.Count);
                 layout.minHeight = layout.preferredHeight = visible * RowHeight + 3;
                 scrollContent.sizeDelta = new Vector2(0, record.upgrades.Count * RowHeight);
@@ -130,7 +132,7 @@ namespace SulfurRandomWeapons
                 if (record == null) return;
                 int start = Math.Max(0, Math.Min(record.upgrades.Count - visible, (int)(scrollContent.anchoredPosition.y / RowHeight)));
                 var rows = record.upgrades.AsEnumerable().Reverse().Skip(start).Take(visible + 1);
-                text.text = string.Join("\n", rows.Select(level => "Lv." + level.rank.ToString("00") + "  " + string.Join("  ", level.gains.Select(g => Progression.Labels[g.stat] + " " + Progression.Colored(g.percent)).ToArray())).ToArray());
+                text.text = string.Join("\n", rows.Select(level => "Lv." + level.rank.ToString("00") + "  " + string.Join("  ", level.gains.Select(g => WeaponText.HistoryLabel(g.stat) + " " + Progression.Colored(g.percent)).ToArray())).ToArray());
                 text.rectTransform.anchoredPosition = new Vector2(0, -start * RowHeight);
                 text.rectTransform.sizeDelta = new Vector2(0, (visible + 1) * RowHeight);
             }

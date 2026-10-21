@@ -37,7 +37,7 @@ namespace SulfurRandomWeapons
     [Serializable]
     public sealed class WeaponRecord
     {
-        public int version = 2;
+        public int version = 3;
         public string guid;
         public int weaponId;
         public string origin;
@@ -56,8 +56,8 @@ namespace SulfurRandomWeapons
         public const uint SourceId = 0xF174B036;
         public const uint OldFixedSourceId = 0xF174B035;
         public const int MaxRank = 1000;
-        public static readonly ItemAttributes[] Attributes = { ItemAttributes.Damage, ItemAttributes.RPM, ItemAttributes.ReloadSpeed, ItemAttributes.Spread, ItemAttributes.KickMultiplier };
-        public static readonly string[] Labels = { "伤害", "射速", "换弹", "精准", "控枪" };
+        public static readonly ItemAttributes[] Attributes = { ItemAttributes.Damage, ItemAttributes.RPM, ItemAttributes.ReloadSpeed, ItemAttributes.Spread, ItemAttributes.KickMultiplier, ItemAttributes.MaxDurability };
+        public static string[] Labels { get { return WeaponText.Labels; } }
 
         private static uint Next(ref uint state)
         {
@@ -82,23 +82,23 @@ namespace SulfurRandomWeapons
             if (guid == null) guid = Guid.NewGuid().ToString("N");
             if (seed == 0) { seed = BitConverter.ToUInt32(Guid.NewGuid().ToByteArray(), 0); if (seed == 0) seed = 1; }
             var record = new WeaponRecord { guid = guid, weaponId = weaponId, origin = origin, originalIdentifier = previous ?? "",
-                randomState = seed, rules = JsonConvert.DeserializeObject<RollRules>(JsonConvert.SerializeObject(rules)), initial = new float[5] };
+                randomState = seed, rules = JsonConvert.DeserializeObject<RollRules>(JsonConvert.SerializeObject(rules)), initial = new float[6] };
             int range = (int)Math.Round(rules.initialRange * 10);
-            for (int i = 0; i < 5; i++) record.initial[i] = Int(ref record.randomState, -range, range) / 10f;
+            for (int i = 0; i < 6; i++) record.initial[i] = Int(ref record.randomState, -range, range) / 10f;
             return record;
         }
         public static bool Valid(WeaponRecord record)
         {
             Guid parsed;
-            if (record == null || record.version != 2 || !Guid.TryParse(record.guid, out parsed) || record.weaponId <= 0 || record.weaponId > ushort.MaxValue ||
-                record.randomState == 0 || !RulesValid(record.rules) || record.initial == null || record.initial.Length != 5 ||
+            if (record == null || (record.version != 2 && record.version != 3) || !Guid.TryParse(record.guid, out parsed) || record.weaponId <= 0 || record.weaponId > ushort.MaxValue ||
+                record.randomState == 0 || !RulesValid(record.rules) || record.initial == null || (record.version == 2 ? record.initial.Length != 5 : record.initial.Length != 6) ||
                 record.initial.Any(v => !Finite(v) || Math.Abs(v) > 50) || record.upgrades == null || record.upgrades.Count > MaxRank ||
                 (record.inheritedDamage != 0 && record.inheritedDamage != 10) || (record.originalIdentifier != null && record.originalIdentifier.Length > 4096)) return false;
             for (int i = 0; i < record.upgrades.Count; i++)
             {
                 var level = record.upgrades[i];
                 if (level == null || level.rank != i + 1 || level.gains == null || level.gains.Count < record.rules.minPicks || level.gains.Count > record.rules.maxPicks ||
-                    level.gains.Any(g => g == null || g.stat < 0 || g.stat >= 5 || !Finite(g.percent) || g.percent < 0.1f || g.percent > 50) ||
+                    level.gains.Any(g => g == null || g.stat < 0 || g.stat >= record.initial.Length || !Finite(g.percent) || g.percent < 0.1f || g.percent > 50) ||
                     level.gains.Select(g => g.stat).Distinct().Count() != level.gains.Count) return false;
             }
             return true;
@@ -106,13 +106,14 @@ namespace SulfurRandomWeapons
         public static bool Advance(WeaponRecord record, int rank)
         {
             if (!Valid(record)) throw new ArgumentException("Invalid saved weapon record.");
+            Upgrade(record);
             rank = Math.Max(0, Math.Min(MaxRank, rank));
             bool changed = record.upgrades.Count < rank;
             while (record.upgrades.Count < rank)
             {
                 var level = new RankGain { rank = record.upgrades.Count + 1 };
                 int picks = Int(ref record.randomState, record.rules.minPicks, record.rules.maxPicks);
-                var pool = new List<int> { 0, 1, 2, 3, 4 };
+                var pool = new List<int> { 0, 1, 2, 3, 4, 5 };
                 for (int pick = 0; pick < picks; pick++)
                 {
                     int index = Int(ref record.randomState, 0, pool.Count - 1);
@@ -160,15 +161,20 @@ namespace SulfurRandomWeapons
         }
         public static float[] Totals(WeaponRecord record)
         {
-            var totals = new float[5];
+            var totals = new float[6];
             foreach (var level in record.upgrades) foreach (var gain in level.gains) totals[gain.stat] += gain.percent;
             return totals;
         }
         public static float Factor(WeaponRecord record, int stat)
         {
-            double factor = (1.0 + record.initial[stat] / 100.0) * (1.0 + Totals(record)[stat] / 100.0);
+            double factor = (1.0 + (stat < record.initial.Length ? record.initial[stat] : 0) / 100.0) * (1.0 + Totals(record)[stat] / 100.0);
             if (stat == 0) factor *= 1.0 + record.inheritedDamage / 100.0;
-            return (float)(stat >= 3 ? 1.0 / factor : factor);
+            return (float)(stat == 3 || stat == 4 ? 1.0 / factor : factor);
+        }
+        public static void Upgrade(WeaponRecord record)
+        {
+            if(record.version!=2)return;
+            Array.Resize(ref record.initial,6);record.version=3;
         }
         public static void Apply(ItemStats stats, WeaponRecord record, bool enabled)
         {
@@ -179,6 +185,11 @@ namespace SulfurRandomWeapons
                 if (enabled && stats.activeItemAttributes.Contains((int)Attributes[i]))
                     stats.AddModifier(Attributes[i], new StatModifier(Factor(record, i) - 1, StatModType.PercentMult, SourceId));
             }
+            if(stats.activeItemAttributes.Contains((int)ItemAttributes.MaxDurability)&&stats.activeItemAttributes.Contains((int)ItemAttributes.Durability))
+            {
+                float maximum=Math.Max(2,Math.Min(99999999,(int)stats.GetAttribute(ItemAttributes.MaxDurability)));
+                if(stats.GetAttribute(ItemAttributes.Durability)>maximum)stats.SetAttributeBaseValue(ItemAttributes.Durability,maximum);
+            }
         }
         public static string Percent(float value)
         {
@@ -187,8 +198,10 @@ namespace SulfurRandomWeapons
         public static string Colored(float value) { return "<color=" + (value >= 0 ? "#93D7A0" : "#F09D94") + ">" + Percent(value) + "</color>"; }
         public static string Summary(float[] values)
         {
+            if (!WeaponText.IsChinese(WeaponText.Language()))
+                return string.Join("\n", Labels.Select((label, index) => label + " " + Colored(index<values.Length?values[index]:0)).ToArray());
             return Labels[0] + " " + Colored(values[0]) + "  " + Labels[1] + " " + Colored(values[1]) + "\n" +
-                Labels[2] + " " + Colored(values[2]) + "  " + Labels[3] + " " + Colored(values[3]) + "  " + Labels[4] + " " + Colored(values[4]);
+                Labels[2] + " " + Colored(values[2]) + "  " + Labels[3] + " " + Colored(values[3]) + "\n" + Labels[4] + " " + Colored(values[4])+"  "+Labels[5]+" "+Colored(values.Length>5?values[5]:0);
         }
         public static string History(WeaponRecord record)
         {

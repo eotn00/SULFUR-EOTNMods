@@ -9,12 +9,14 @@ $common = @('mscorlib','System','System.Core','netstandard','PerfectRandom.Sulfu
     'UnityEngine','UnityEngine.CoreModule','UnityEngine.UI','UnityEngine.UIModule') |
     ForEach-Object { '/reference:' + (Join-Path $managed ($_ + '.dll')) }
 $common += @("/reference:$core\BepInEx.dll", "/reference:$core\0Harmony.dll")
-$weapon = @('Progression.cs','WeaponState.cs','Migration.cs','RandomWeapons.cs','WeaponDescription.cs') |
+$weapon = @('Progression.cs','WeaponState.cs','Migration.cs','RandomWeapons.cs','WeaponDescription.cs','WeaponText.cs','WeaponLanguage.cs') |
     ForEach-Object { Join-Path $PSScriptRoot "src\RandomWeaponProgression\$_" }
 $weapon += Join-Path $PSScriptRoot 'src\OptionsUi.cs'
-$weaponRefs = @('Newtonsoft.Json','UnityEngine.JSONSerializeModule','Unity.TextMeshPro') |
+$weapon += @('QualityRecord.cs','EquipmentQualityTest.cs','EquipmentMigration.cs','Affixes.cs','QualitySettings.cs') |
+    ForEach-Object { Join-Path $PSScriptRoot "src\EquipmentQualityTest\$_" }
+$weaponRefs = @('Newtonsoft.Json','UnityEngine.JSONSerializeModule','Unity.TextMeshPro','I2AsmDef','UnityEngine.TextRenderingModule') |
     ForEach-Object { '/reference:' + (Join-Path $managed ($_ + '.dll')) }
-& $compiler /nologo /noconfig /nostdlib+ /target:library /optimize+ "/out:$output\更rpg的火湖.dll" $common $weaponRefs $weapon
+& $compiler /nologo /noconfig /nostdlib+ /target:library /optimize+ "/out:$output\更RPG的火湖.dll" $common $weaponRefs $weapon
 if($LASTEXITCODE -ne 0) { throw 'Weapon progression compilation failed' }
 & $compiler /nologo /noconfig /nostdlib+ /target:library /optimize+ "/out:$output\SaveCompatibilityFix.dll" $common "$PSScriptRoot\src\SaveCompatibilityFix\SaveCompatibilityFix.cs"
 if($LASTEXITCODE -ne 0) { throw 'Save compatibility compilation failed' }
