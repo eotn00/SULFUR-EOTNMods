@@ -3,20 +3,17 @@
 This is the latest local 3.0.3 feature set, renumbered to 0.3.3 at the author's request.
 It is not a data-format downgrade. Plugin ID, configuration and saved IDs remain unchanged.
 
-- Retains weapon progression, equipment qualities, Charisma fixes and encoding/maintenance caches.
-- Unreal equipment quality: independent 1/10,000 roll, then ordinary weights on a miss.
-- Supported original numeric benefits double and penalties become zero. Special effects and discrete counts retain their existing handling.
-- Armor maximum durability doubles without repairing current durability.
-- Five affixes: maximum configured all-weapon damage and critical chance at double strength, followed by three applicable random affixes at double strength.
-- Luck and extra jumps retain +1 per affix; duplicate affixes remain allowed.
+- Performance update: caches repeated attribute-record encoding to reduce repeated work during saving.
+- Caches maintenance reduction calculations to reduce equipment scans when durability is consumed.
+- Retains weapon progression, equipment qualities and Charisma fixes.
 - Existing IDs, quality and affixes do not reroll.
 
-本版包含超现实红色品质、魅力修复、编码缓存与养护缓存优化。版本按作者要求改为 0.3.3，功能与存档格式不回退。
+本版为性能优化更新：通过属性记录编码缓存和养护减耗缓存，减少重复编码与装备遍历。保留已有枪械成长、装备品质和魅力修复，已有记录不重抽。实际收益取决于使用场景，不承诺固定帧率提升。
 
 Exit and back up saves/config. Install only sulfur-RPG.dll; remove the old unified
 更rpg的火湖.dll / RandomWeaponProgression.dll and older standalone RPG components.
-Keep existing configuration and migration state. New unreal records require this
-build or the local 3.0.3 implementation; do not load them with older implementations.
+Keep existing configuration and migration state. Older implementations may not
+support all records written by this build; do not downgrade without a backup.
 Restore matching save/config backups when rolling back.
 
 Offline weapon/equipment tests passed. Actual game interaction and compatibility with

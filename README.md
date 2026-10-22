@@ -25,7 +25,7 @@ EOTN为火湖制作的mod存放地：更 RPG 的火湖与实用 Mod。
 
 已在 SULFUR 0.19.10、BepInEx 5.4.23.5 的本地环境验证。插件依赖当前游戏和第三方 Mod 的内部接口，不能保证兼容其他版本；更新前请备份。
 
-## RPG 3.0.1 历史功能说明
+## 更RPG的火湖 / sulfur-RPG 0.3.3
 
 - 枪械六维随机属性：伤害、射速、换弹、精准、控枪和最大耐久；旧五维记录补零耐久维度，不重抽。
 - 每升一级随机提升 1 至 2 项属性，保存逐级记录，读档不重抽。
@@ -33,15 +33,42 @@ EOTN为火湖制作的mod存放地：更 RPG 的火湖与实用 Mod。
 - 编号与属性记录随武器保存。首次迁移现有武器时会创建迁移计划与备份。
 - 护甲和饰品支持六档品质，以及精良/史诗/传奇的 1/2/3 条额外词条；原有正负属性按有益方向处理。
 - 枪械与装备功能合并在一个插件中，可以分别开关；支持中文与英文界面，以及品质名称着色。
-- **3.0.1 修复：魅力参与品质浮动。** 已有装备只追加缺少的魅力记录，保留编号、品质、其他浮动和额外词条；不加强侦探烟斗的时间效果。
+- 魅力参与品质浮动；已有装备保留编号、品质、属性和额外词条。
+- **0.3.3 性能优化**：缓存重复的属性记录编码，减少保存流程中的重复处理；缓存养护减耗计算结果，减少扣耐久时的重复装备遍历。实际收益取决于装备数量与使用场景，不承诺固定帧率提升。
 
-Firearms receive six birth rolls and random per-rank growth. Armor and accessories receive six quality tiers and additional affixes. Both modules can be toggled independently and support Chinese and English. Version 3.0.1 fixes missing Charisma quality adjustments without rerolling existing IDs, quality or affixes. The Detective Pipe's time effect is unchanged.
+Firearms receive six birth rolls and random per-rank growth. Armor and accessories receive quality adjustments and additional affixes, including Charisma support. Both modules can be toggled independently and support Chinese and English. Version 0.3.3 reduces repeated record encoding and equipment scans through encoding and maintenance caches, without rerolling existing records. Performance gains depend on the workload.
 
 枪械升级使用原“武器拓展/武器位阶”Mod 提供的位阶与经验系统，本插件不改变经验曲线。OptionsScreen 设置插件只提供游戏内设置页；没有它仍可使用 Mod 并编辑配置文件。
 
 升级时移除旧独立 `EquipmentQualityTest.dll`、`RankBonuses.dll`、`SingleWeaponSaveTest.dll` 和旧名称 `RandomWeaponProgression.dll`，替换旧主插件，只保留一份 RPG DLL。保留 `BepInEx/config/RandomWeaponProgression/` 和 `BepInEx/config/EquipmentQuality/` 的迁移状态，恢复旧存档时同时恢复相应状态。统一配置为 `BepInEx/config/local.sulfur.randomweaponprogression.cfg`。
 
-最新版双语详情、默认数值及存档策略：[3.0.1 说明](MoreRPGSulfur-3.0.1-README.txt)。历史 [2.0 武器成长说明](src/RandomWeaponProgression/README.md) 仅供旧版参考。
+当前更新与安装说明：[0.3.3 说明](src/RandomWeaponProgression/RELEASE-0.3.3.md)。[3.0.1 说明](MoreRPGSulfur-3.0.1-README.txt)及 [2.0 武器成长说明](src/RandomWeaponProgression/README.md) 仅供历史参考。
+
+## 库存重构 / Inventory Redux 0.1.0
+
+- 将背包与仓库扩容、分页、滚动、整理、锁定和堆叠整合到一个插件中；装备不堆叠。
+- F6 配置容量、每页行数、页数、可见行数、缩放和操作键位；支持拖动容器、提示、弹药与货币栏的位置。
+- Shift 框选后拖动任意选中物品即可整组移动，并显示目标落点预览；尽量保留相对位置，无法保留时尝试空位排布。
+- 指向选中物品按 L 批量锁定；全部已锁定时批量解锁。锁定物品不被自动整理搬走，但可接收兼容堆叠，也可手动移动与拆分。
+- 支持拆分半堆、只取一个、手持堆叠连续放一个及单次放一半；新分出的物品不继承锁定。
+- 仓库界面提供“全部存入”和“补充堆叠”；支持右键划过连续转移、Ctrl + 左键划过连续丢弃。
+- 读档核对数量与布局，检测到部分异常时阻止保存；这些保护不能代替存档备份。
+
+One plugin for backpack/stash capacity, equal-sized pages, scrolling, group dragging with previews, locking, sorting and non-equipment stacking. Includes batch lock/unlock, split/pour controls, deposit/top-up actions and configurable layout. Locked stacks stay in place during sorting but can receive compatible items. Back up saves before installation and updates.
+
+安装前移出冲突的旧背包、仓库、锁定、堆叠与框选插件，只保留一份 `InventoryRedux.dll`。从旧名升级时移出 `UnifiedInventory.dll`，保留原配置。详见[完整说明](src/InventoryRedux/README.md)。
+
+## 我食纪事 / what's this 0.2.2
+
+- 悬停物品时，在说明里显示它能制作多少种成品、拥有多少个制作来源，并提示按 F8 查看详情。
+- F8 页面按成品分组展示具体配方变体，材料与产物使用数量和原版贴图，悬停图标可查看物品说明。
+- 默认只查看玩家已解锁的配方；页面内可切换“查看所有配方”，仅影响显示，不实际解锁配方。
+- 支持滚动浏览，中英文随游戏语言适配；快捷键可配置。
+- 只读查询，不修改存档、物品或制作流程，不依赖 RPG 和远程制作插件。
+
+Hover an item for recipe counts, then press F8 for grouped recipe variants with quantities, native artwork and tooltips. Learned recipes are shown by default; an in-window option displays all recipes without unlocking them. Chinese/English follows the game language. Read-only, with a configurable hotkey.
+
+安装 `whats_this.dll`，移出旧名称 `CraftingReference.dll` 或其他重复副本。详见[完整说明](src/RecipeBrowser/README.md)。
 
 ## 存档兼容修复
 
