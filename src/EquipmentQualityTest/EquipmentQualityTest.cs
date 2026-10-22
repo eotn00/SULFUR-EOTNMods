@@ -28,6 +28,35 @@ namespace SulfurEquipmentQualityTest
         private static TMPro.TMP_FontAsset chineseFallback;
         private static readonly ConditionalWeakTable<Pickup, QualityRecord> pickupRecords = new ConditionalWeakTable<Pickup, QualityRecord>();
         [ThreadStatic] private static QualityRecord pickupContext;
+        private sealed class WearCache { internal object save; internal int revision; internal float reduction; }
+        private static readonly ConditionalWeakTable<EquipmentManager,WearCache> wearCaches=new ConditionalWeakTable<EquipmentManager,WearCache>();
+        private static int wearRevision;
+        private static void InvalidateWear() { unchecked { wearRevision++; } }
+        [HarmonyPatch(typeof(EquipmentManager),"OnEquipmentChange")]
+        [HarmonyPostfix]
+        private static void EquipmentChanged() { InvalidateWear(); }
+        [HarmonyPatch(typeof(InventoryItem),"OnDurabilityChange")]
+        [HarmonyPrefix]
+        private static void BeforeDurabilityChanged(float newValue,float oldValue)
+        { if((newValue<=0)!=(oldValue<=0))InvalidateWear(); }
+        [HarmonyPatch(typeof(InventoryItem),"OnDurabilityChange")]
+        [HarmonyFinalizer]
+        private static void AfterDurabilityChanged(float newValue,float oldValue)
+        { if((newValue<=0)!=(oldValue<=0))InvalidateWear(); }
+        private static float WearReduction(EquipmentManager manager)
+        {
+            var cache=wearCaches.GetOrCreateValue(manager);
+            if(cache.save==SulfurSaveState.active&&cache.revision==wearRevision&&cache.save!=null)return cache.reduction;
+            float reduction=0;
+            foreach(var pair in manager.EquippedItems)
+            {
+                State state;var gear=pair.Value;
+                if(gear==null||gear.IsBroken||!items.TryGetValue(gear,out state)||state.record.extras==null)continue;
+                foreach(var extra in state.record.extras)if(extra.key=="care")reduction+=extra.value;
+            }
+            cache.save=SulfurSaveState.active;cache.revision=wearRevision;cache.reduction=reduction;
+            return reduction;
+        }
         internal static bool Eligible(ItemDefinition item)
         {return item!=null&&!(item is WeaponSO)&&item.useType==UseType.Equippable&&Affixes.EligibleSlot(item.slotType);}
         internal static EntityAttributes[] Supported(ItemDefinition item)
@@ -142,6 +171,7 @@ namespace SulfurEquipmentQualityTest
         [HarmonyPostfix]
         private static void AfterStats(InventoryItem __instance)
         {
+            InvalidateWear();
             State state;
             if (!items.TryGetValue(__instance, out state) || __instance.stats == null) return;
             stats.Remove(__instance.stats); stats.Add(__instance.stats, state.record);
@@ -206,6 +236,7 @@ namespace SulfurEquipmentQualityTest
         [HarmonyPostfix]
         private static void DestroyItem(InventoryItem __instance)
         {
+            InvalidateWear();
             State state;
             if (items.TryGetValue(__instance, out state) && state.clone != null) UnityEngine.Object.Destroy(state.clone);
             items.Remove(__instance);
@@ -269,18 +300,14 @@ namespace SulfurEquipmentQualityTest
             bool firearm=weapon!=null&&!weapon.IsMelee&&!weapon.IsThrowable;
             bool armor=weapon==null&&Eligible(__instance.itemDefinition)&&__instance.itemDefinition.slotType!=SlotType.PassiveEnhancements&&__instance.itemDefinition.HasDurability;
             if(!firearm&&!armor)return;
-            var manager=StaticInstance<GameManager>.Instance.EquipmentManager;if(manager==null)return;float reduction=0;
-            foreach(var pair in manager.EquippedItems)
-            {
-                State state;var gear=pair.Value;if(gear==null||gear.IsBroken||!items.TryGetValue(gear,out state)||state.record.extras==null)continue;
-                reduction+=state.record.extras.Where(e=>e.key=="care").Sum(e=>e.value);
-            }
-            durabilityChange*=Quality.WearFactor(reduction,QualitySettings.CareCap.Value);
+            var manager=StaticInstance<GameManager>.Instance.EquipmentManager;if(manager==null)return;
+            durabilityChange*=Quality.WearFactor(WearReduction(manager),QualitySettings.CareCap.Value);
         }
         [HarmonyPatch(typeof(GameManager), "LoadEquipmentData")]
         [HarmonyPrefix]
         private static void Migrate()
         {
+            InvalidateWear();
             try { EquipmentMigration.Ensure(SulfurSaveState.active); }
             catch (Exception ex) { log.LogError("Equipment migration stopped without rerolling: " + ex); }
         }
@@ -298,6 +325,7 @@ namespace SulfurEquipmentQualityTest
         }
         internal static void Refresh()
         {
+            InvalidateWear();
             var game=StaticInstance<GameManager>.Instance;
             foreach(var item in Resources.FindObjectsOfTypeAll<InventoryItem>())
             {

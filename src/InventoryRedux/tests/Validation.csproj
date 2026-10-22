@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net9.0</TargetFramework></PropertyGroup>
+  <ItemGroup>
+    <Compile Include="..\Geometry.cs" />
+    <Compile Include="..\Operations.cs" />
+    <Compile Include="..\QuantityTransaction.cs" />
+    <Reference Include="Newtonsoft.Json"><HintPath>$(GameRoot)\Sulfur_Data\Managed\Newtonsoft.Json.dll</HintPath></Reference>
+    <Reference Include="Mono.Cecil"><HintPath>$(GameRoot)\BepInEx\core\Mono.Cecil.dll</HintPath></Reference>
+  </ItemGroup>
+</Project>

@@ -2,17 +2,21 @@
 
 EOTN为火湖制作的mod存放地：更 RPG 的火湖与实用 Mod。
 
-三个独立的 BepInEx 5 插件。本项目只提供自制插件及源码，不包含游戏本体、第三方 Mod、个人存档或配置。
+五个独立的 BepInEx 5 插件。本项目只提供自制插件及源码，不包含游戏本体、第三方 Mod、个人存档或配置。
 
 | Mod | 版本 | 插件文件 |
 | --- | --- | --- |
-| 更RPG的火湖 / More RPG Sulfur | 3.0.1 | `更rpg的火湖.dll` |
+| 更RPG的火湖 / sulfur-RPG | 0.3.3 | `sulfur-RPG.dll` |
+| 库存重构 / Inventory Redux | 0.1.0 | `InventoryRedux.dll` |
+| 我食纪事 / what's this | 0.2.2 | `whats_this.dll` |
 | 存档兼容修复 | 1.0.0 | `SaveCompatibilityFix.dll` |
 | 教堂仓库制作 | 1.0.0 | `ChurchStashCrafting.dll` |
 
 ## 下载与安装
 
-更RPG的火湖最新版：[`MoreRPGSulfur-3.0.1.zip`](releases/MoreRPGSulfur-3.0.1.zip)。另外两个插件可从 [`plugins/`](plugins/) 单独获取。旧版合集仍保留为历史版本，不要与最新版 RPG 重复安装。
+最新下载：[sulfur-RPG 0.3.3](releases/sulfur-RPG-0.3.3.zip)、[Inventory Redux 0.1.0](releases/InventoryRedux-0.1.0.zip)、[what's this 0.2.2](releases/whats_this-0.2.2.zip)。也可从 [`plugins/`](plugins/) 单独获取 DLL。历史压缩包保留，但不要重复安装旧 DLL。
+
+新版说明：[RPG](src/RandomWeaponProgression/RELEASE-0.3.3.md)、[Inventory Redux](src/InventoryRedux/README.md)、[我食纪事](src/RecipeBrowser/README.md)。RPG 按作者要求从本地 3.0.3 重新编号为 0.3.3，并非功能降级；内部 ID、配置和记录格式不变。
 
 1. 安装 BepInEx 5，以及所选插件需要的第三方 Mod。
 2. **正常保存并退出游戏，备份整个存档目录及插件配置。** 默认存档位于 `%USERPROFILE%/AppData/LocalLow/Perfect Random/Sulfur/`。
@@ -21,7 +25,7 @@ EOTN为火湖制作的mod存放地：更 RPG 的火湖与实用 Mod。
 
 已在 SULFUR 0.19.10、BepInEx 5.4.23.5 的本地环境验证。插件依赖当前游戏和第三方 Mod 的内部接口，不能保证兼容其他版本；更新前请备份。
 
-## 更RPG的火湖 / More RPG Sulfur 3.0.1
+## RPG 3.0.1 历史功能说明
 
 - 枪械六维随机属性：伤害、射速、换弹、精准、控枪和最大耐久；旧五维记录补零耐久维度，不重抽。
 - 每升一级随机提升 1 至 2 项属性，保存逐级记录，读档不重抽。

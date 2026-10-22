@@ -15,6 +15,12 @@ using PerfectRandom.Sulfur.Core.CharacterStats;
 class Program
 {
     static int checks;
+    sealed class EasterRandom:Random
+    {
+        readonly int ticket;
+        public EasterRandom(int ticket,int seed):base(seed){this.ticket=ticket;}
+        public override int Next(int maxValue){return maxValue==10000?ticket:base.Next(maxValue);}
+    }
     static void Check(bool value, string name) { if (!value) throw new Exception("FAIL: " + name); checks++; }
     static string Read(string path) { using var f = File.OpenRead(path); using var g = new GZipStream(f, CompressionMode.Decompress); using var r = new StreamReader(g); return r.ReadToEnd(); }
     static void Main(string[] args)
@@ -57,7 +63,7 @@ class Program
         var repaired=Quality.Encode(missing);
         Check(!Quality.ExtendAttributes(missing,new[]{EntityAttributes.Stat_Charisma},gearRules)&&Quality.Encode(missing)==repaired,"coverage repair is idempotent");
         Check(Quality.Adjust(25,missing.rolls[1],EntityAttributes.Stat_Charisma)>25&&Quality.Adjust(25,-20,EntityAttributes.Stat_Charisma)==20,"charisma benefit and penalty actually change modifier value");
-        for(int tier=0;tier<6;tier++)
+        for(int tier=0;tier<7;tier++)
         {
             Check(Affixes.GradeLabel(tier,true)=="<color="+Affixes.GradeColors[tier]+">"+Affixes.ChineseGrades[tier]+"</color>","only Chinese quality name receives grade color");
             Check(Affixes.GradeLabel(tier,false)=="<color="+Affixes.GradeColors[tier]+">"+Affixes.EnglishGrades[tier]+"</color>","English quality name uses matching color");
@@ -79,7 +85,7 @@ class Program
         {
             var forced=new EquipmentRules();forced.weights=new float[6];forced.weights[grade]=1;
             var r=new QualityRecord{version=4,guid=Guid.NewGuid().ToString("N"),itemId=999,originalIdentifier="",attributes=new[]{EntityAttributes.Stat_MaxHealth},rolls=new float[1]};
-            Affixes.Enrich(r,slot,forced,rng);
+            Affixes.Enrich(r,slot,forced,new EasterRandom(1,rng.Next()));
             Check(Quality.Valid(r)&&r.quality==grade&&r.extras.Count==Math.Max(0,grade-2),"tier grade/count valid");
             string beforeArmor=Quality.Encode(r);var extrasBefore=JsonConvert.SerializeObject(r.extras);
             Quality.AssignDurability(r,forced);float armorRoll=r.durabilityRoll.Value;
@@ -98,6 +104,39 @@ class Program
             string exact=Quality.Encode(r);Check(Quality.Decode(exact,out var saved)&&Quality.Encode(saved)==exact,"tier/affix save roundtrip exact");
         }
         Check(repeatAffixes&&allWeaponSeen&&luckSeen&&jumpSeen,"repeat rolls, all-weapon mastery, luck and extra jump reachable");
+        var redRules=new EquipmentRules();redRules.ranges["mastery"]=new[]{4f,9f};redRules.ranges["crit"]=new[]{2f,6f};
+        bool randomValuesDiffer=false;float firstRandom=-1;
+        foreach(var slot in new[]{PerfectRandom.Sulfur.Core.SlotType.Head,PerfectRandom.Sulfur.Core.SlotType.Torso,PerfectRandom.Sulfur.Core.SlotType.Legs,PerfectRandom.Sulfur.Core.SlotType.Hands,PerfectRandom.Sulfur.Core.SlotType.Feet,PerfectRandom.Sulfur.Core.SlotType.PassiveEnhancements})
+        for(int sample=0;sample<100;sample++)
+        {
+            var red=new QualityRecord{version=4,guid=Guid.NewGuid().ToString("N"),itemId=999,originalIdentifier="",attributes=new[]{EntityAttributes.Stat_MaxHealth,EntityAttributes.Stat_WeaponWeightPenalty},rolls=new float[2]};
+            Affixes.Enrich(red,slot,redRules,new EasterRandom(0,sample));
+            Check(Quality.Valid(red)&&red.quality==6&&red.rolls.All(v=>v==100)&&red.extras.Count==5,"unreal has fixed 100 percent originals and five extras");
+            Check(red.extras[0].key=="mastery"&&red.extras[0].subtype==Affixes.Masteries.Length-1&&red.extras[0].value==18&&red.extras[1].key=="crit"&&red.extras[1].value==12,"fixed extras use configured maxima doubled");
+            foreach(var e in red.extras.Skip(2))
+            {
+                var d=Affixes.Pool.Single(d=>d.key==e.key);var range=redRules.ranges.TryGetValue(d.key,out var configured)?configured:new[]{d.min,d.max};
+                Check(d.slots.Length==0||Array.IndexOf(d.slots,slot)>=0,"unreal random extras respect slot pool");
+                Check(d.integer?e.value==1:e.value>=Math.Round(range[0]*2,1)-.01&&e.value<=Math.Round(range[1]*2,1)+.01,"unreal random range doubled with integer exceptions");
+                if(firstRandom<0)firstRandom=e.value;else randomValuesDiffer|=e.value!=firstRandom;
+            }
+            Quality.AssignDurability(red,redRules);Check(red.durabilityRoll==100,"unreal armor max durability doubled");
+            Check(Quality.ExtendAttributes(red,new[]{EntityAttributes.Stat_Charisma},redRules)&&red.rolls.Last()==100,"unreal future attribute coverage stays fixed");
+            var marker=Quality.Encode(red);Check(Quality.Decode(marker,out var roundtrip)&&Quality.Encode(roundtrip)==marker,"unreal marker exact roundtrip");
+            Check(!Quality.CanInitialize(marker),"unreal saved records cannot reroll");
+            red.rolls[0]=99;Check(!Quality.Valid(red),"unreal malformed original roll rejected");red.rolls[0]=100;
+            red.extras[0].subtype=0;Check(!Quality.Valid(red),"unreal missing global fixed affix rejected");
+        }
+        Check(randomValuesDiffer,"unreal random affixes are not fixed maximum");
+        Check(Quality.Adjust(10,100,EntityAttributes.Stat_MaxHealth)==20&&Quality.Adjust(-10,100,EntityAttributes.Stat_MaxHealth)==0,"unreal doubles benefits and clears negative stats");
+        Check(Quality.Adjust(.2f,100,EntityAttributes.Stat_WeaponWeightPenalty)==0&&Quality.Adjust(-.2f,100,EntityAttributes.Stat_WeaponWeightPenalty)==-.4f,"unreal handles lower-is-better stats");
+        var edgeRules=new EquipmentRules();edgeRules.weights=new[]{0f,1f,0f,0f,0f,0f};
+        foreach(int ticket in new[]{0,1,9999})
+        {
+            var edge=new QualityRecord{version=4,guid=Guid.NewGuid().ToString("N"),itemId=999,originalIdentifier="",attributes=new EntityAttributes[0],rolls=new float[0]};
+            Affixes.Enrich(edge,PerfectRandom.Sulfur.Core.SlotType.Head,edgeRules,new EasterRandom(ticket,1));
+            Check(edge.quality==(ticket==0?6:1),"independent 10000-ticket gate preserves six-tier weights even at boundaries");
+        }
         var armorStats=new ItemStats();armorStats.SetAttributeBaseValue(ItemAttributes.MaxDurability,500);armorStats.SetAttributeBaseValue(ItemAttributes.Durability,450);
         var armorRecord=Quality.Create(701,"");armorRecord.durabilityRoll=20;
         for(int i=0;i<10;i++)Quality.ApplyDurability(armorStats,armorRecord,true);
@@ -169,7 +208,7 @@ class Program
         Check(plugin.MainModule.Types.Count(t=>t.CustomAttributes.Any(a=>a.AttributeType.Name=="BepInPlugin"))==1,"single plugin entry point after merge");
         Check(!plugin.MainModule.Types.SelectMany(t=>t.Methods).Any(m=>m.Name=="ZeroExistingGunDurability"||m.Name=="EnrichLegacy"),"forced reroll and gun reset entry points absent from plugin");
         Check(!plugin.MainModule.Types.SelectMany(t=>t.Methods).Where(m=>m.HasBody).SelectMany(m=>m.Body.Instructions).Any(i=>i.Operand is string s&&s.Contains("authorized-reroll")),"plugin does not consume private cleanup receipts");
-        using var core = AssemblyDefinition.ReadAssembly(Path.Combine(Environment.GetEnvironmentVariable("SULFUR_TEST_GAME_ROOT") ?? throw new Exception("Set SULFUR_TEST_GAME_ROOT"), "Sulfur_Data/Managed/PerfectRandom.Sulfur.Core.dll"));
+        using var core = AssemblyDefinition.ReadAssembly("D:/game/online/Steam/steamapps/common/SULFUR/Sulfur_Data/Managed/PerfectRandom.Sulfur.Core.dll");
         var runtime = plugin.MainModule.Types.Single(t=>t.Name=="EquipmentQualityTest");
         foreach(string name in new[]{"BeforeSpawnPickup","BeforePickupSetup","BeforeSetup"})
         {
@@ -194,11 +233,18 @@ class Program
             var type=(TypeReference)patch.ConstructorArguments[0].Value; string name=(string)patch.ConstructorArguments[1].Value;
             Check(core.MainModule.GetType(type.FullName).Methods.Any(m=>m.Name==name), "patch target " + name);
         }
-        if(args.Length < 2)
+        if(args.Length==3&&args[1]=="--audit-current")
         {
-            Console.WriteLine("PASS: " + checks + " checks. Offline validation only; no personal save required or modified.");
-            return;
+            var actual=JToken.Parse(Read(args[2]));int count=0;
+            foreach(var marker in actual.SelectTokens("$..identifier").Where(t=>t.Type==JTokenType.String&&((string)t).StartsWith(Quality.Prefix)))
+            {
+                Check(Quality.Decode((string)marker,out var stored),"current equipment record accepted");
+                Check(Quality.Encode(stored)==(string)marker,"current equipment record byte exact");
+                Check(!Quality.CanInitialize((string)marker),"current equipment excluded from new quality roll");count++;
+            }
+            Console.WriteLine("PASS: "+checks+" checks including read-only audit of "+count+" current equipment records; no save writes.");return;
         }
+        if(args.Length<2){Console.WriteLine("PASS: "+checks+" offline checks; legacy two-item save fixture skipped.");return;}
         string path=args[1]; byte[] bytes=File.ReadAllBytes(path); var save=JToken.Parse(Read(path)); var copy=save.DeepClone();
         var targets=copy["INVENTORY"].Children().Where(i => (int)i["id"]["value"] == 701 && (bool)i["equipped"] && (int)i["inventorySlot"] == 3 || (int)i["id"]["value"] == 678 && (bool)i["equipped"] && (int)i["inventorySlot"] == 12).ToArray();
         Check(targets.Length == 2 && targets.All(i=>(int)i["quantity"]==1 && ((string)i["identifier"]=="" || Quality.Decode((string)i["identifier"],out var existing) && existing.itemId==(int)i["id"]["value"])), "exactly two valid single equipped items in slot 5");

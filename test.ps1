@@ -11,8 +11,13 @@ if($LASTEXITCODE -ne 0) { throw 'Compatibility test compilation failed' }
 & "$PSScriptRoot\build\CompatibilityTests.exe" $GameRoot "$PSScriptRoot\build\SaveCompatibilityFix.dll"
 if($LASTEXITCODE -ne 0) { throw 'Compatibility tests failed' }
 $project = "$PSScriptRoot\src\RandomWeaponProgression\tests\Validation.csproj"
-dotnet run --project $project "-p:GameRoot=$GameRoot" -- "$PSScriptRoot\build\更rpg的火湖.dll" $GameRoot
+dotnet run --project $project "-p:GameRoot=$GameRoot" -- "$PSScriptRoot\build\sulfur-RPG.dll" $GameRoot
 if($LASTEXITCODE -ne 0) { throw 'Weapon progression tests failed' }
 $env:SULFUR_TEST_GAME_ROOT = $GameRoot
-dotnet run --project "$PSScriptRoot\src\EquipmentQualityTest\tests\Validation.csproj" "-p:GameRoot=$GameRoot" -- "$PSScriptRoot\build\更RPG的火湖.dll"
+dotnet run --project "$PSScriptRoot\src\EquipmentQualityTest\tests\Validation.csproj" "-p:GameRoot=$GameRoot" -- "$PSScriptRoot\build\sulfur-RPG.dll"
 if($LASTEXITCODE -ne 0) { throw 'Equipment quality tests failed' }
+dotnet run --project "$PSScriptRoot\src\RecipeBrowser\tests\Validation.csproj" "-p:GameRoot=$GameRoot" -- "$PSScriptRoot\build\whats_this.dll" "$GameRoot\Sulfur_Data\Managed\PerfectRandom.Sulfur.Core.dll"
+if($LASTEXITCODE -ne 0) { throw 'Recipe browser tests failed' }
+$env:SULFUR_TEST_GAME_ROOT=$GameRoot
+dotnet run --project "$PSScriptRoot\src\InventoryRedux\tests\Validation.csproj" "-p:GameRoot=$GameRoot" -- "$PSScriptRoot\build\InventoryRedux.dll"
+if($LASTEXITCODE -ne 0) { throw 'Inventory Redux tests failed' }

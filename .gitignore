@@ -10,3 +10,4 @@ build/
 SaveBackups/
 BepInEx/config/
 PluginConfigs/
+**/Backups/

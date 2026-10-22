@@ -36,7 +36,7 @@ namespace SulfurRandomWeapons
                 File.WriteAllLines(Path.Combine(folder, names[i] + ".lang"), WeaponText.Settings.Select(pair => WeaponText.Key(pair.Key) + "=" + pair.Value[i]).ToArray(), Encoding.UTF8);
             var localization = AccessTools.TypeByName("SulfurOptionsScreenSettings.ModLocalization");
             if (localization != null) localization.GetMethod("Reload").Invoke(null, null);
-            category = Call("RegisterCategoryLoc", RandomWeapons.Id, WeaponText.Key("Category"), "More RPG Sulfur", 9050);
+            category = Call("RegisterCategoryLoc", RandomWeapons.Id, WeaponText.Key("Category"), "sulfur-RPG", 9050);
             Call("AddInfoLoc",category,"RandomWeapons_Section",WeaponText.Key("Section"),0,null,"Firearm Stats",null);
             Call("AddBoolLoc", category, "RandomWeapons_Enabled", WeaponText.Key("Enabled"), enabled.Value,
                 new Action<bool>(value => { enabled.Value = value; refresh(); }), 10, WeaponText.Key("EnabledTip"), WeaponText.Settings["Enabled"][1], WeaponText.Settings["EnabledTip"][1]);

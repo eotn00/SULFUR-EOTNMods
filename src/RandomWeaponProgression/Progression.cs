@@ -51,6 +51,24 @@ namespace SulfurRandomWeapons
 
     public static class Progression
     {
+        private sealed class EncodingEntry { internal WeaponRecord snapshot; internal string marker; }
+        private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<WeaponRecord, EncodingEntry> encodings = new System.Runtime.CompilerServices.ConditionalWeakTable<WeaponRecord, EncodingEntry>();
+        private static bool Same(WeaponRecord a, WeaponRecord b)
+        {
+            if(a.version!=b.version||a.guid!=b.guid||a.weaponId!=b.weaponId||a.origin!=b.origin||a.originalIdentifier!=b.originalIdentifier||a.randomState!=b.randomState||a.inheritedDamage!=b.inheritedDamage)return false;
+            var x=a.rules;var y=b.rules;
+            if(x==null||a.initial==null||a.upgrades==null)return false;
+            if(x.initialRange!=y.initialRange||x.upgradeMin!=y.upgradeMin||x.upgradeMax!=y.upgradeMax||x.minPicks!=y.minPicks||x.maxPicks!=y.maxPicks||a.initial.Length!=b.initial.Length||a.upgrades.Count!=b.upgrades.Count)return false;
+            for(int i=0;i<a.initial.Length;i++)if(a.initial[i]!=b.initial[i])return false;
+            for(int i=0;i<a.upgrades.Count;i++)
+            {
+                var p=a.upgrades[i];var q=b.upgrades[i];
+                if(p==null||p.gains==null)return false;
+                if(p.rank!=q.rank||p.gains.Count!=q.gains.Count)return false;
+                for(int j=0;j<p.gains.Count;j++)if(p.gains[j]==null||p.gains[j].stat!=q.gains[j].stat||p.gains[j].percent!=q.gains[j].percent)return false;
+            }
+            return true;
+        }
         public const string Prefix = "sulfur.random-weapons.v2:";
         public const string LegacyPrefix = "sulfur.single-weapon-test.v1:";
         public const uint SourceId = 0xF174B036;
@@ -127,8 +145,15 @@ namespace SulfurRandomWeapons
         }
         public static string Encode(WeaponRecord record)
         {
+            if(record==null)throw new ArgumentException("Invalid weapon record.");
+            // Compare every persisted field, not a hash or a caller-maintained dirty flag.
+            var entry=encodings.GetOrCreateValue(record);
+            if(entry.snapshot!=null&&Same(record,entry.snapshot))return entry.marker;
             if (!Valid(record)) throw new ArgumentException("Invalid weapon record.");
-            return Prefix + Convert.ToBase64String(Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(record)));
+            string json=JsonConvert.SerializeObject(record);
+            entry.snapshot=JsonConvert.DeserializeObject<WeaponRecord>(json);
+            entry.marker=Prefix+Convert.ToBase64String(Encoding.UTF8.GetBytes(json));
+            return entry.marker;
         }
         public static bool TryDecode(string marker, out WeaponRecord record)
         {

@@ -19,7 +19,7 @@ namespace SulfurRandomWeapons
         public static string HistoryLabel(int stat) { return IsChinese(Language()) ? ChineseLabels[stat] : ShortLabels[stat]; }
         public static readonly Dictionary<string, string[]> Settings = new Dictionary<string, string[]>
         {
-            { "Category", new[] { "更RPG的火湖", "More RPG Sulfur" } },
+            { "Category", new[] { "更RPG的火湖", "sulfur-RPG" } },
             { "Section", new[] { "枪械属性", "Firearm Stats" } },
             { "Enabled", new[] { "启用枪械属性", "Enable firearm stats" } },
             { "EnabledTip", new[] { "保留每把枪的初始词条和升级记录，关闭只暂停属性效果。", "Disabling pauses stat effects but preserves weapon IDs, initial rolls and upgrade history." } },

@@ -55,9 +55,10 @@ namespace SulfurEquipmentQualityTest
             Def("luck","幸运","Lucky",1,1,EntityAttributes.Stat_LuckGain,true,SlotType.Feet,SlotType.PassiveEnhancements)
         };
         public static readonly EntityAttributes[] Masteries = { EntityAttributes.ExtraDamage_AssaultRifle,EntityAttributes.ExtraDamage_Pistol,EntityAttributes.ExtraDamage_Revolver,EntityAttributes.ExtraDamage_Rifle,EntityAttributes.ExtraDamage_Shotgun,EntityAttributes.ExtraDamage_SMG,EntityAttributes.ExtraDamage_Sniper,EntityAttributes.ExtraDamage_LMG,EntityAttributes.Stat_GlobalDamageMultiplier };
-        public static readonly string[] ChineseGrades={"破损","普通","优质","精良","史诗","传奇"};
-        public static readonly string[] EnglishGrades={"Damaged","Common","Fine","Superior","Epic","Legendary"};
-        public static readonly string[] GradeColors={"#A0A0A0","#FFFFFF","#69D675","#5AA7FF","#C483F5","#FFAA42"};
+        public const int Unreal = 6;
+        public static readonly string[] ChineseGrades={"破损","普通","优质","精良","史诗","传奇","超现实"};
+        public static readonly string[] EnglishGrades={"Damaged","Common","Fine","Superior","Epic","Legendary","unreal"};
+        public static readonly string[] GradeColors={"#A0A0A0","#FFFFFF","#69D675","#5AA7FF","#C483F5","#FFAA42","#FF4545"};
         public static string GradeLabel(int grade,bool chinese)
         {return "<color="+GradeColors[grade]+">"+(chinese?ChineseGrades[grade]:EnglishGrades[grade])+"</color>";}
         public static bool EligibleSlot(SlotType slot) { return slot==SlotType.Head || slot==SlotType.Torso || slot==SlotType.Legs || slot==SlotType.Hands || slot==SlotType.Feet || slot==SlotType.PassiveEnhancements; }
@@ -70,26 +71,43 @@ namespace SulfurEquipmentQualityTest
         }
         private static bool Finite(float v){return !float.IsNaN(v)&&!float.IsInfinity(v);}
         private static float Roll(Random rng,float lo,float hi){return rng.Next((int)Math.Ceiling(lo*10),(int)Math.Floor(hi*10)+1)/10f;}
+        public static float RollOriginal(int grade,EquipmentRules rules,Random rng)
+        {return grade==Unreal?100:grade==1?0:Roll(rng,rules.minimum[grade],rules.maximum[grade])*(grade==0?-1:1);}
+        private static ExtraAffix CreateExtra(AffixDefinition d,EquipmentRules rules,Random rng,float scale,bool maximum,int subtype)
+        {
+            var range=rules.ranges.ContainsKey(d.key)?rules.ranges[d.key]:new[]{d.min,d.max};
+            return new ExtraAffix{key=d.key,value=d.integer?1:(float)Math.Round((maximum?range[1]:Roll(rng,range[0],range[1]))*scale,1),subtype=subtype};
+        }
         public static void Enrich(QualityRecord record,SlotType slot,EquipmentRules rules,Random rng)
         {
             if(!RulesValid(rules)||!EligibleSlot(slot))throw new ArgumentException("Invalid quality rules or slot");
             if(record==null||record.version!=4||record.quality.HasValue)throw new InvalidOperationException("Only newly created records may roll quality");
-            double pick=rng.NextDouble()*rules.weights.Sum();int grade=5;
-            for(int i=0;i<6;i++){pick-=rules.weights[i];if(pick<0){grade=i;break;}}
-            record.quality=grade;record.extras=new List<ExtraAffix>();record.legacyPreserved=false;
-            for(int i=0;i<record.rolls.Length;i++)record.rolls[i]=grade==1?0:Roll(rng,rules.minimum[grade],rules.maximum[grade])*(grade==0?-1:1);
-            var pool=Pool.Where(d=>d.slots.Length==0||Array.IndexOf(d.slots,slot)>=0).ToArray();
-            for(int i=0;i<Math.Max(0,grade-2);i++)
+            int grade=Unreal;
+            if(rng.Next(10000)!=0)
             {
-                var d=pool[rng.Next(pool.Length)];var range=rules.ranges.ContainsKey(d.key)?rules.ranges[d.key]:new[]{d.min,d.max};
-                record.extras.Add(new ExtraAffix{key=d.key,value=d.integer?1:(float)Math.Round(Roll(rng,range[0],range[1])*rules.scales[grade],1),subtype=d.key=="mastery"?rng.Next(Masteries.Length):0});
+                double pick=rng.NextDouble()*rules.weights.Sum();grade=5;
+                for(int i=0;i<6;i++){pick-=rules.weights[i];if(pick<0){grade=i;break;}}
+            }
+            record.quality=grade;record.extras=new List<ExtraAffix>();record.legacyPreserved=false;
+            for(int i=0;i<record.rolls.Length;i++)record.rolls[i]=RollOriginal(grade,rules,rng);
+            var pool=Pool.Where(d=>d.slots.Length==0||Array.IndexOf(d.slots,slot)>=0).ToArray();
+            if(grade==Unreal)
+            {
+                record.extras.Add(CreateExtra(Pool.Single(d=>d.key=="mastery"),rules,rng,2,true,Masteries.Length-1));
+                record.extras.Add(CreateExtra(Pool.Single(d=>d.key=="crit"),rules,rng,2,true,0));
+            }
+            for(int i=0;i<(grade==Unreal?3:Math.Max(0,grade-2));i++)
+            {
+                var d=pool[rng.Next(pool.Length)];
+                record.extras.Add(CreateExtra(d,rules,rng,grade==Unreal?2:rules.scales[grade],false,d.key=="mastery"?rng.Next(Masteries.Length):0));
             }
         }
         public static bool ValidExtras(QualityRecord r)
         {
             if(!r.quality.HasValue)return r.extras==null&&!r.legacyPreserved;
             int grade=r.quality.Value;
-            return grade>=0&&grade<6&&r.extras!=null&&r.extras.Count==Math.Max(0,grade-2)&&r.extras.All(e=>e!=null&&Pool.Any(d=>d.key==e.key)&&Finite(e.value)&&e.value>=0&&e.value<=500&&(e.key!="mastery"||e.subtype>=0&&e.subtype<Masteries.Length)&&(!(e.key=="extraJump"||e.key=="luck")||e.value==1));
+            return grade>=0&&grade<=Unreal&&r.extras!=null&&r.extras.Count==(grade==Unreal?5:Math.Max(0,grade-2))&&r.extras.All(e=>e!=null&&Pool.Any(d=>d.key==e.key)&&Finite(e.value)&&e.value>=0&&e.value<=500&&(e.key!="mastery"||e.subtype>=0&&e.subtype<Masteries.Length)&&(!(e.key=="extraJump"||e.key=="luck")||e.value==1))&&
+                (grade!=Unreal||r.extras[0].key=="mastery"&&r.extras[0].subtype==Masteries.Length-1&&r.extras[1].key=="crit");
         }
         public static bool Percent(AffixDefinition d){return d.key!="armor"&&d.key!="heavy"&&d.key!="health"&&!d.integer;}
         public static string Describe(ExtraAffix e,bool chinese)

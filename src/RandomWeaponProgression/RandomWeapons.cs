@@ -15,14 +15,14 @@ using SulfurCustomMods;
 
 namespace SulfurRandomWeapons
 {
-    [BepInPlugin(Id, Name, "3.0.1")]
+    [BepInPlugin(Id, Name, "0.3.3")]
     [BepInDependency("com.sulfur.optionsscreen.settings", BepInDependency.DependencyFlags.SoftDependency)]
     [BepInDependency("AetharNet.Mods.EWeapon", BepInDependency.DependencyFlags.SoftDependency)]
     [HarmonyPatch]
     public sealed class RandomWeapons : BaseUnityPlugin
     {
         public const string Id = "local.sulfur.randomweaponprogression";
-        public const string Name = "更RPG的火湖";
+        public const string Name = "更RPG的火湖 / sulfur-RPG";
         internal static RandomWeapons Instance;
         internal static ConfigEntry<bool> Enabled;
         private static ConfigEntry<float> initialRange, upgradeMin, upgradeMax;
@@ -72,7 +72,7 @@ namespace SulfurRandomWeapons
                 SulfurEquipmentQualityTest.QualitySettings.Register(WeaponLanguage.Category);
             }
             catch (Exception ex) { Logger.LogWarning("Options UI registration failed: " + ex.Message); }
-            Logger.LogInfo(Name + " 3.0.1 loaded. Charisma quality coverage fixed; existing records retain IDs, prior rolls and affixes.");
+            Logger.LogInfo(Name + " 0.3.3 loaded. Unreal equipment quality: independent 1/10000 roll; existing records retained.");
         }
         private static void Refresh()
         {

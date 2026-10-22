@@ -32,6 +32,18 @@ namespace SulfurEquipmentQualityTest
     }
     public static class Quality
     {
+        private sealed class EncodingEntry { internal QualityRecord snapshot; internal string marker; }
+        private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<QualityRecord, EncodingEntry> encodings = new System.Runtime.CompilerServices.ConditionalWeakTable<QualityRecord, EncodingEntry>();
+        private static bool Same(QualityRecord a,QualityRecord b)
+        {
+            if(a.rolls==null)return false;
+            if(a.version!=b.version||a.guid!=b.guid||a.itemId!=b.itemId||a.tier!=b.tier||a.originalIdentifier!=b.originalIdentifier||a.quality!=b.quality||a.legacyPreserved!=b.legacyPreserved||a.durabilityRoll!=b.durabilityRoll||a.rolls.Length!=b.rolls.Length)return false;
+            for(int i=0;i<a.rolls.Length;i++)if(a.rolls[i]!=b.rolls[i])return false;
+            if((a.attributes==null)!=(b.attributes==null)||(a.extras==null)!=(b.extras==null))return false;
+            if(a.attributes!=null){if(a.attributes.Length!=b.attributes.Length)return false;for(int i=0;i<a.attributes.Length;i++)if(a.attributes[i]!=b.attributes[i])return false;}
+            if(a.extras!=null){if(a.extras.Count!=b.extras.Count)return false;for(int i=0;i<a.extras.Count;i++){var x=a.extras[i];var y=b.extras[i];if(x==null||x.key!=y.key||x.value!=y.value||x.subtype!=y.subtype)return false;}}
+            return true;
+        }
         public static bool CanInitialize(string marker) { return string.IsNullOrEmpty(marker); }
         public const uint DurabilitySource = 0xF174B038;
         public static void AssignDurability(QualityRecord record,EquipmentRules rules)
@@ -40,7 +52,7 @@ namespace SulfurEquipmentQualityTest
             if(!Affixes.RulesValid(rules))throw new ArgumentException("Invalid armor durability rules");
             int grade=record.quality.Value;
             var rng=new Random(BitConverter.ToInt32(Guid.Parse(record.guid).ToByteArray(),0)^0x51D0);
-            record.durabilityRoll=grade==1?0:rng.Next((int)Math.Ceiling(rules.minimum[grade]*10),(int)Math.Floor(rules.maximum[grade]*10)+1)/10f*(grade==0?-1:1);
+            record.durabilityRoll=Affixes.RollOriginal(grade,rules,rng);
         }
         public static float WearFactor(float reduction,float cap){return 1-Math.Max(0,Math.Min(Math.Min(99,cap),reduction))/100f;}
         public static void ApplyDurability(ItemStats stats,QualityRecord record,bool enabled)
@@ -67,7 +79,7 @@ namespace SulfurEquipmentQualityTest
             Guid guid;
             return r != null && (r.version >= 1 && r.version <= 4) && Guid.TryParse(r.guid, out guid) && r.itemId > 0 && r.itemId <= ushort.MaxValue &&
                 r.tier >= 0 && r.tier < 3 && r.rolls != null && (r.version == 4 || r.rolls.Length > 0) && r.rolls.Length <= 64 &&
-                r.rolls.All(v => !float.IsNaN(v) && !float.IsInfinity(v) && Math.Abs(v) <= (r.version==4?90:50)) && (!r.durabilityRoll.HasValue || !float.IsNaN(r.durabilityRoll.Value)&&!float.IsInfinity(r.durabilityRoll.Value)&&Math.Abs(r.durabilityRoll.Value)<=90) && Affixes.ValidExtras(r) && (r.version!=4 || r.quality.HasValue) &&
+                r.rolls.All(v => !float.IsNaN(v) && !float.IsInfinity(v) && (r.quality==Affixes.Unreal?r.version==4&&v==100:Math.Abs(v) <= (r.version==4?90:50))) && (!r.durabilityRoll.HasValue || !float.IsNaN(r.durabilityRoll.Value)&&!float.IsInfinity(r.durabilityRoll.Value)&&(r.quality==Affixes.Unreal?r.version==4&&r.durabilityRoll.Value==100:Math.Abs(r.durabilityRoll.Value)<=90)) && Affixes.ValidExtras(r) && (r.version!=4 || r.quality.HasValue) &&
                 (r.version >= 3 ? r.attributes != null && r.attributes.Length == r.rolls.Length && r.attributes.Distinct().Count() == r.attributes.Length && r.attributes.All(a => Direction(a) != 0) :
                     Attributes(r.itemId).Length == r.rolls.Length && (r.version == 1 ? r.attributes == null : r.attributes != null && r.attributes.SequenceEqual(Attributes(r.itemId)))) &&
                 r.originalIdentifier != null && r.originalIdentifier.Length <= 4096;
@@ -118,7 +130,7 @@ namespace SulfurEquipmentQualityTest
             {
                 if(attributes.Contains(attribute)||Direction(attribute)==0)continue;
                 var rng=new Random(BitConverter.ToInt32(Guid.Parse(record.guid).ToByteArray(),0)^(int)attribute^0x4C71);
-                float roll=grade==1?0:rng.Next((int)Math.Ceiling(rules.minimum[grade]*10),(int)Math.Floor(rules.maximum[grade]*10)+1)/10f*(grade==0?-1:1);
+                float roll=Affixes.RollOriginal(grade,rules,rng);
                 attributes.Add(attribute);rolls.Add(roll);changed=true;
             }
             record.attributes=attributes.ToArray();record.rolls=rolls.ToArray();return changed;
@@ -160,8 +172,14 @@ namespace SulfurEquipmentQualityTest
         }
         public static string Encode(QualityRecord r)
         {
+            if(r==null)throw new ArgumentException("Invalid quality record");
+            var entry=encodings.GetOrCreateValue(r);
+            if(entry.snapshot!=null&&Same(r,entry.snapshot))return entry.marker;
             if (!Valid(r)) throw new ArgumentException("Invalid quality record");
-            return Prefix + Convert.ToBase64String(Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(r)));
+            string json=JsonConvert.SerializeObject(r);
+            entry.snapshot=JsonConvert.DeserializeObject<QualityRecord>(json);
+            entry.marker=Prefix+Convert.ToBase64String(Encoding.UTF8.GetBytes(json));
+            return entry.marker;
         }
         public static bool Decode(string marker, out QualityRecord record)
         {
