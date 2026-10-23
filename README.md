@@ -16,7 +16,7 @@ EOTN为火湖制作的mod存放地：更 RPG 的火湖与实用 Mod。
 
 最新下载：[sulfur-RPG 0.3.3](releases/sulfur-RPG-0.3.3.zip)、[Inventory Redux 0.1.0](releases/InventoryRedux-0.1.0.zip)、[what's this 0.2.2](releases/whats_this-0.2.2.zip)。也可从 [`plugins/`](plugins/) 单独获取 DLL。历史压缩包保留，但不要重复安装旧 DLL。
 
-新版说明：[RPG](src/RandomWeaponProgression/RELEASE-0.3.3.md)、[Inventory Redux](src/InventoryRedux/README.md)、[我食纪事](src/RecipeBrowser/README.md)。RPG 按作者要求从本地 3.0.3 重新编号为 0.3.3，并非功能降级；内部 ID、配置和记录格式不变。
+新版说明：[RPG](src/RandomWeaponProgression/RELEASE-0.3.3.md)、[Inventory Redux](src/InventoryRedux/README.md)、[我食纪事](src/RecipeBrowser/README.md)。RPG 从本地 3.0.3 重新编号为 0.3.3，并非功能降级；内部 ID、配置和记录格式不变。
 
 1. 安装 BepInEx 5，以及所选插件需要的第三方 Mod。
 2. **正常保存并退出游戏，备份整个存档目录及插件配置。** 默认存档位于 `%USERPROFILE%/AppData/LocalLow/Perfect Random/Sulfur/`。
