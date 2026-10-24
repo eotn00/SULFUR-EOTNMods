@@ -15,6 +15,7 @@ class Program
     static string Snapshot(object value){return JsonConvert.SerializeObject(value);}
     static void Main(string[] args)
     {
+        CheckLoadAudit();
         Check(Operations.SelectionLockValue(new[]{false,false}),"unlocked selection locks all");
         Check(Operations.SelectionLockValue(new[]{true,false,true}),"mixed selection locks all");
         Check(!Operations.SelectionLockValue(new[]{true,true}),"locked selection unlocks all");
@@ -32,7 +33,7 @@ class Program
         }
         bool rollbackStopped=false;
         QuantityTransaction.Run(()=>{throw new Exception("change");},()=>{},()=>{throw new Exception("rollback");},()=>{},e=>{},e=>rollbackStopped=true);
-        Check(rollbackStopped,"failed rollback blocks further operations");
+        Check(rollbackStopped,"failed rollback reports the recovery failure");
         foreach(int initial in new[]{1,2,9,10})foreach(int existing in new[]{0,7})foreach(bool half in new[]{false,true})foreach(bool fault in new[]{false,true})
         {
             int source=initial,target=existing,amount=Operations.PourAmount(initial,half);bool destroyed=false;
@@ -116,6 +117,23 @@ class Program
         Check(read.Body.Instructions.Count(i=>i.Operand is MethodReference m&&m.DeclaringType.Name=="JsonUtility"&&m.Name=="FromJson")==1,"PC reader serializer replacement");
         using var plugin=AssemblyDefinition.ReadAssembly(args[0]);
         var stacks=plugin.MainModule.GetType("LocalSulfur.UnifiedInventory.Stacks");
+        var pluginType=plugin.MainModule.GetType("LocalSulfur.UnifiedInventory.Plugin");
+        var audit=pluginType.Methods.Single(m=>m.Name=="Audit");
+        Check(!audit.Body.Instructions.Any(i=>i.Operand is MethodReference m&&m.Name=="Fail"),"load differences do not activate save blocking");
+        Check(audit.Body.Instructions.Any(i=>i.Operand is MethodReference m&&m.Name=="LogWarning"),"load differences are logged as warnings");
+        var transactionWarning=pluginType.Methods.Single(m=>m.Name=="TransactionFailed");
+        Check(!transactionWarning.Body.Instructions.Any(i=>i.Operand is MethodReference m&&new[]{"Fail","WriteToDisk","WriteActiveToDisk"}.Contains(m.Name)),"transaction warning neither safety-stops nor initiates saving");
+        Check(!transactionWarning.Body.Instructions.Any(i=>i.OpCode==Mono.Cecil.Cil.OpCodes.Stsfld&&i.Operand is FieldReference f&&f.Name=="failed"),"failed recovery does not latch the save-blocking state");
+        Check(transactionWarning.Body.Instructions.Any(i=>i.Operand is MethodReference m&&m.Name=="LogWarning"),"failed recovery is reported");
+        Check(stacks.Methods.Single(m=>m.Name=="PlaceHeld").Body.Instructions.Any(i=>i.Operand is MethodReference m&&m.Name=="TransactionFailed"),"held-placement failure uses warning callback");
+        var management=plugin.MainModule.GetType("LocalSulfur.UnifiedInventory.Management");
+        foreach(string name in new[]{"Resize","Commit"})
+        {
+            var calls=management.Methods.Single(m=>m.Name==name).Body.Instructions.Select(i=>i.Operand).OfType<MethodReference>().ToArray();
+            Check(calls.Any(m=>m.Name=="TransactionFailed")&&!calls.Any(m=>m.Name=="Fail"),"inventory rollback failure warns: "+name);
+        }
+        Check(!plugin.MainModule.Types.SelectMany(t=>t.Methods).Where(m=>m.HasBody).SelectMany(m=>m.Body.Instructions)
+            .Any(i=>i.Operand is MethodReference m&&m.DeclaringType.FullName=="UnityEngine.Application"&&m.Name=="Quit"),"no custom exit implementation");
         Check(!stacks.Methods.Single(m=>m.Name=="PlaceHeld").Body.Instructions.Any(i=>i.Operand is MethodReference m&&m.Name=="Locked"),"manual held placement accepts locked source");
         Check(stacks.Methods.Single(m=>m.Name=="Split").Body.Instructions.Any(i=>i.Operand is MethodReference m&&m.Name=="UnlockNewPortion"),"split portion starts unlocked");
         foreach(string methodName in new[]{"Add","MergeForSort","DepositExisting"})
@@ -209,6 +227,31 @@ class Program
         Check(plugin.MainModule.GetType("LocalSulfur.UnifiedInventory.ItemLocks").Methods.Any(m=>m.Name=="Deserialize"),"lock metadata read hook exists");
         foreach(var path in args.Skip(1))AuditSave(path);
         Console.WriteLine("PASS "+checks+" checks. Offline algorithms and binary contracts only; Unity play test still required.");
+    }
+    static void CheckLoadAudit()
+    {
+        LoadAuditEntry Entry(int id,int quantity,string position="0,0")=>new LoadAuditEntry(id,quantity,id+"|"+quantity+"|"+position);
+        var expected=Enumerable.Range(1,49).Select(id=>Entry(id,1)).ToArray();
+        var before=expected.Select(e=>e.Id+"|"+e.Quantity+"|"+e.Signature).ToArray();
+        var result=LoadAudit.Compare(expected,expected.Take(48).ToArray());
+        Check(!result.Matches&&result.ExpectedRecords==49&&result.ActualRecords==48,"49/48 report remains visible");
+        Check(result.MissingKinds==1&&result.MissingUnits==1&&result.Missing[49]==1,"missing record identified by actual item ID and quantity");
+        Check(expected.Select(e=>e.Id+"|"+e.Quantity+"|"+e.Signature).SequenceEqual(before),"audit never changes saved records");
+        Check(LoadAudit.Compare(expected,expected.Reverse().ToArray()).Matches,"record enumeration order does not matter");
+        result=LoadAudit.Compare(new[]{Entry(1,5)},new[]{Entry(1,4)});
+        Check(result.MissingKinds==1&&result.MissingUnits==1,"partial stack loss counted with equal record counts");
+        result=LoadAudit.Compare(new[]{Entry(1,5),Entry(1,5,"1,0")},new[]{Entry(1,10)});
+        Check(!result.Matches&&result.MissingKinds==0&&result.MissingUnits==0,"merged stacks are not reported as lost items");
+        result=LoadAudit.Compare(new[]{Entry(1,10)},new[]{Entry(1,5),Entry(1,5,"1,0")});
+        Check(result.MissingUnits==0,"split stack is not reported as loss");
+        result=LoadAudit.Compare(new[]{Entry(1,10)},new[]{Entry(1,10,"9,9")});
+        Check(!result.Matches&&result.MissingUnits==0,"layout change is distinguished from quantity loss");
+        result=LoadAudit.Compare(new[]{Entry(1,10)},new[]{Entry(2,100)});
+        Check(result.MissingKinds==1&&result.MissingUnits==10,"new unrelated items cannot conceal missing items");
+        result=LoadAudit.Compare(new[]{Entry(1,int.MaxValue),Entry(1,int.MaxValue,"1,0")},new LoadAuditEntry[0]);
+        Check(result.MissingKinds==1&&result.MissingUnits==2L*int.MaxValue,"large stack totals cannot overflow int");
+        Check(LoadAudit.Compare(new LoadAuditEntry[0],new[]{Entry(1,1)}).MissingUnits==0,"native starter item additions are not loss");
+        Check(LoadAudit.Compare(new[]{Entry(1,1),Entry(1,1)},new[]{Entry(1,1)}).MissingUnits==1,"duplicate records are accounted by quantity");
     }
     static void AuditSave(string path)
     {

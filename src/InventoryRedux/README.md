@@ -1,4 +1,13 @@
-# 库存重构 / Inventory Redux 0.1.0
+# 库存重构 / Inventory Redux 0.1.5
+
+0.1.5 将读档差异与交易回滚失败改为提醒，允许玩家自行决定是否保存退出。
+显示减少的物品种类与总数量，提供中英文提示及日志。没有新增退出按钮。
+完整更新与安装说明：[0.1.5](RELEASE-0.1.5.md)。锁定材料参与制作的开关已推迟，未包含在本版。
+
+Version 0.1.5 warns about load differences and failed transaction recovery without
+blocking saving for those conditions. Notices show missing types and total units
+and follow the game's Chinese/English language. No custom exit button is added.
+The proposed locked-ingredient crafting option is deferred.
 
 Unified backpack and stash capacity, independent pages and scrolling, stacking,
 locking, sorting, splitting and group movement. Equipment never stacks.
@@ -30,7 +39,8 @@ old automatic sorter and Better Move Item plugins. Do not delete their backups.
 
 Internal ID/config remains local.sulfur.unifiedinventory. Existing settings survive renaming.
 Native item records are retained; locks use extra JSON metadata. Loading checks quantity,
-position, dimensions and rotation. Unsafe load/placement states block saving.
+position, dimensions and rotation. Load differences and failed rollback warn;
+initialization failures and invalid stock generation retain separate checks.
 This is not a universal transaction system: backups remain necessary, and external
 mod callbacks or older save damage are not guaranteed recoverable.
 

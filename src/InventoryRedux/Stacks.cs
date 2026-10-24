@@ -61,6 +61,7 @@ namespace LocalSulfur.UnifiedInventory
         internal static bool PlacementPending {get{return placement!=null;}}
         private static void CapturePlacement(InventoryItem __instance,ItemGrid containingGrid,InventoryData attachedData)
         {
+            MerchantBridge.Capture(__instance,containingGrid,attachedData);
             if(placement!=null&&placement.Grid==containingGrid&&ReferenceEquals(placement.Data,attachedData))
             {
                 if(placement.Created!=null)throw new InvalidOperationException("Nested placement creation");
@@ -109,7 +110,7 @@ namespace LocalSulfur.UnifiedInventory
         {
             var mark=item.GetComponent<ItemMark>();if(mark!=null)mark.Locked=false;
         }
-        private static bool Compatible(InventoryItem left,InventoryData right,ItemDefinition definition,bool manual=false)
+        internal static bool Compatible(InventoryItem left,InventoryData right,ItemDefinition definition,bool manual=false)
         {
             if(left==null||left.itemDefinition!=definition||!CanStack(definition)||left.isBeingDragged||(!manual&&ItemLocks.Locked(left))||left.SoldForPrice!=0)return false;
             var data=left.GetSerialized();
@@ -157,7 +158,7 @@ namespace LocalSulfur.UnifiedInventory
             item.quantity--;__instance.iAmmoCurrent=1;RefreshBadge(item);return false;
         }
         private static void Price(InventoryItem __instance,ref int __result)
-        {if(CanStack(__instance.itemDefinition)&&__instance.quantity>1)__result=(int)Math.Min(int.MaxValue,(long)__result*__instance.quantity);}
+        {if(!MerchantBridge.Quoting&&CanStack(__instance.itemDefinition)&&__instance.quantity>1)__result=(int)Math.Min(int.MaxValue,(long)__result*__instance.quantity);}
         private static void BeginTransaction(){transaction++;}
         private static Exception EndTransaction(Exception __exception){transaction--;return __exception;}
         // Native transactions store their total. Keep per-unit history for later splitting and resale.
@@ -185,6 +186,7 @@ namespace LocalSulfur.UnifiedInventory
             if(splitDrag!=null||splitReleaseFrame==Time.frameCount)return false;
             var k=Keyboard.current;
             if(Menu.Open||Menu.Selecting||Viewport.IsLayoutDragging)return false;
+            if(MerchantBridge.HandleClick(__instance,pointerEventData))return false;
             if(pointerEventData.button!=PointerEventData.InputButton.Right||k==null||!Controls.SplitHeld)return true;
             var settings=Plugin.Instance.Settings;
             // Raw mouse-down is handled by Menu; swallow the later click to avoid a second split/use.
@@ -202,7 +204,7 @@ namespace LocalSulfur.UnifiedInventory
             data.quantity=quantity;data.position=new[]{position.x,position.y};
             grid.AddItemToPosition(source.itemDefinition,position.x,position.y,data,data.rotated,true);
             var created=grid.GetSlotAt(position).ItemInSlot;
-            if(created==null||created==source){Plugin.Fail(new InvalidOperationException("Split placement failed"));return false;}
+            if(created==null||created==source){Plugin.TransactionFailed(new InvalidOperationException("Split placement failed"));return false;}
             UnlockNewPortion(created);
             created.quantity=quantity;source.quantity-=quantity;RefreshBadge(source);RefreshBadge(created);
             Management.Selection.Clear();
@@ -271,7 +273,7 @@ namespace LocalSulfur.UnifiedInventory
                     if(creating)
                     {
                         var created=attempt.Created;
-                        if(created==null)throw new InvalidOperationException("Creation failed before its instance could be tracked; saving blocked");
+                        if(created==null)throw new InvalidOperationException("Creation failed before its instance could be tracked");
                         if(created!=null)
                         {
                             // Setup may throw before registration. Remove only references to this exact new object.
@@ -296,7 +298,7 @@ namespace LocalSulfur.UnifiedInventory
                         AccessTools.Method(typeof(InventoryItem),"GenericDragEnd").Invoke(source,null);
                         destroy.Invoke(source,null);
                     }
-                },error=>Plugin.Instance.Report("Held placement cancelled and restored: "+error),Plugin.Fail);
+                },error=>Plugin.Instance.Report("Held placement cancelled and restored: "+error),Plugin.TransactionFailed);
             }
             finally { placement=null; }
         }

@@ -2,7 +2,7 @@ $ErrorActionPreference = 'Stop'
 $release = Join-Path $PSScriptRoot 'releases'
 New-Item -ItemType Directory -Path $release -Force | Out-Null
 foreach($entry in @(
-    @('InventoryRedux','0.1.0','src\InventoryRedux\README.md'),
+    @('InventoryRedux','0.1.5','src\InventoryRedux\RELEASE-0.1.5.md'),
     @('whats_this','0.2.2','src\RecipeBrowser\README.md'),
     @('sulfur-RPG','0.3.3','src\RandomWeaponProgression\RELEASE-0.3.3.md')
 )) {

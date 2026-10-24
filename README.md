@@ -2,19 +2,23 @@
 
 EOTN为火湖制作的mod存放地：更 RPG 的火湖与实用 Mod。
 
-五个独立的 BepInEx 5 插件。本项目只提供自制插件及源码，不包含游戏本体、第三方 Mod、个人存档或配置。
+七个 BepInEx 5 插件与兼容补丁。本项目只提供自制插件及源码，不包含游戏本体、第三方 Mod、个人存档或配置。
 
 | Mod | 版本 | 插件文件 |
 | --- | --- | --- |
 | 更RPG的火湖 / sulfur-RPG | 0.3.3 | `sulfur-RPG.dll` |
-| 库存重构 / Inventory Redux | 0.1.0 | `InventoryRedux.dll` |
+| 库存重构 / Inventory Redux | 0.1.5 | `InventoryRedux.dll` |
+| Trader Framework | 0.1.4 | `TraderFramework.dll` |
+| Inventory Redux - Rummage Compatibility | 0.1.6 | `InventoryRedux.RummageCompat.dll` |
 | 我食纪事 / what's this | 0.2.2 | `whats_this.dll` |
 | 存档兼容修复 | 1.0.0 | `SaveCompatibilityFix.dll` |
 | 教堂仓库制作 | 1.0.0 | `ChurchStashCrafting.dll` |
 
 ## 下载与安装
 
-最新下载：[sulfur-RPG 0.3.3](releases/sulfur-RPG-0.3.3.zip)、[Inventory Redux 0.1.0](releases/InventoryRedux-0.1.0.zip)、[what's this 0.2.2](releases/whats_this-0.2.2.zip)。也可从 [`plugins/`](plugins/) 单独获取 DLL。历史压缩包保留，但不要重复安装旧 DLL。
+最新下载：[sulfur-RPG 0.3.3](releases/sulfur-RPG-0.3.3.zip)、[Inventory Redux 0.1.5](releases/InventoryRedux-0.1.5.zip)、[what's this 0.2.2](releases/whats_this-0.2.2.zip)。也可从 [`plugins/`](plugins/) 单独获取 DLL。历史压缩包保留，但不要重复安装旧 DLL。
+
+配套下载：[Trader Framework 0.1.4](releases/TraderFramework-0.1.4.zip)（需要 Inventory Redux 0.1.5+）、[Rummage 兼容补丁 0.1.6](releases/InventoryRedux-Rummage-Compatibility-0.1.6.zip)（另需 Rummage 1.0.0）。三个压缩包分别安装，不捆绑第三方 Mod。
 
 新版说明：[RPG](src/RandomWeaponProgression/RELEASE-0.3.3.md)、[Inventory Redux](src/InventoryRedux/README.md)、[我食纪事](src/RecipeBrowser/README.md)。RPG 从本地 3.0.3 重新编号为 0.3.3，并非功能降级；内部 ID、配置和记录格式不变。
 
@@ -44,7 +48,7 @@ Firearms receive six birth rolls and random per-rank growth. Armor and accessori
 
 当前更新与安装说明：[0.3.3 说明](src/RandomWeaponProgression/RELEASE-0.3.3.md)。[3.0.1 说明](MoreRPGSulfur-3.0.1-README.txt)及 [2.0 武器成长说明](src/RandomWeaponProgression/README.md) 仅供历史参考。
 
-## 库存重构 / Inventory Redux 0.1.0
+## 库存重构 / Inventory Redux 0.1.5
 
 - 将背包与仓库扩容、分页、滚动、整理、锁定和堆叠整合到一个插件中；装备不堆叠。
 - F6 配置容量、每页行数、页数、可见行数、缩放和操作键位；支持拖动容器、提示、弹药与货币栏的位置。
@@ -52,11 +56,21 @@ Firearms receive six birth rolls and random per-rank growth. Armor and accessori
 - 指向选中物品按 L 批量锁定；全部已锁定时批量解锁。锁定物品不被自动整理搬走，但可接收兼容堆叠，也可手动移动与拆分。
 - 支持拆分半堆、只取一个、手持堆叠连续放一个及单次放一半；新分出的物品不继承锁定。
 - 仓库界面提供“全部存入”和“补充堆叠”；支持右键划过连续转移、Ctrl + 左键划过连续丢弃。
-- 读档核对数量与布局，检测到部分异常时阻止保存；这些保护不能代替存档备份。
+- 读档核对数量与布局，差异显示减少的种类与总数量；读档差异或交易回滚失败改为提醒，玩家自行决定是否保存退出。完整[更新说明](src/InventoryRedux/RELEASE-0.1.5.md)。
 
 One plugin for backpack/stash capacity, equal-sized pages, scrolling, group dragging with previews, locking, sorting and non-equipment stacking. Includes batch lock/unlock, split/pour controls, deposit/top-up actions and configurable layout. Locked stacks stay in place during sorting but can receive compatible items. Back up saves before installation and updates.
 
 安装前移出冲突的旧背包、仓库、锁定、堆叠与框选插件，只保留一份 `InventoryRedux.dll`。从旧名升级时移出 `UnifiedInventory.dll`，保留原配置。详见[完整说明](src/InventoryRedux/README.md)。
+
+## 商人与搜索兼容 / Trading and Search Compatibility
+
+Trader Framework 支持右键购买整组、Ctrl + 右键买一个、Alt + 右键买一半；修复购入物品不能合堆和出售堆叠价格重复乘数量的问题。0.1.4 将购买回滚失败改为提醒。需 Inventory Redux 0.1.5+。详见[安装说明](src/TraderFramework/RELEASE-0.1.4.md)。
+
+The trader module supports whole-stack, single and half-stack purchases, with compatible purchased stacks and corrected per-unit pricing. Failed purchase recovery warns without blocking subsequent saving.
+
+独立 Rummage 兼容补丁修正搜索栏被裁切、仓库界面点击和输入问题，支持 Alt + 左键一起拖动搜索栏与结果。需要另外安装 Rummage 1.0.0 和 Inventory Redux。原版 DLL 不修改，不包含全局按键管理。详见[补丁说明](src/RummageInventoryReduxCompat/README.md)。
+
+The independent Rummage patch fixes clipped panels and stash interaction, and supports moving search/results together. Requires both original mods. It does not include a global shortcut manager.
 
 ## 我食纪事 / what's this 0.2.2
 

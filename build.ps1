@@ -30,4 +30,10 @@ $recipeRefs = @('UnityEngine.TextRenderingModule','UnityEngine.InputLegacyModule
 $recipeSources = Get-ChildItem -LiteralPath "$PSScriptRoot\src\RecipeBrowser" -Filter '*.cs' | Select-Object -ExpandProperty FullName
 & $compiler /nologo /noconfig /nostdlib+ /target:library /optimize+ "/out:$output\whats_this.dll" $common $recipeRefs $recipeSources
 if($LASTEXITCODE -ne 0) { throw 'Recipe browser compilation failed' }
-Write-Output "Built all five plugins in $output"
+$traderSources=Get-ChildItem -LiteralPath "$PSScriptRoot\src\TraderFramework" -Filter '*.cs' | Select-Object -ExpandProperty FullName
+& $compiler /nologo /noconfig /nostdlib+ /target:library /optimize+ "/out:$output\TraderFramework.dll" $common $inventoryRefs "/reference:$output\InventoryRedux.dll" $traderSources
+if($LASTEXITCODE -ne 0) { throw 'Trader Framework compilation failed' }
+$rummageSources=Get-ChildItem -LiteralPath "$PSScriptRoot\src\RummageInventoryReduxCompat" -Filter '*.cs' | Select-Object -ExpandProperty FullName
+& $compiler /nologo /noconfig /nostdlib+ /target:library /optimize+ "/out:$output\InventoryRedux.RummageCompat.dll" $common $inventoryRefs $rummageSources
+if($LASTEXITCODE -ne 0) { throw 'Rummage compatibility compilation failed' }
+Write-Output "Built all seven plugins in $output"

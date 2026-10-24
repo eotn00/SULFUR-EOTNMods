@@ -21,3 +21,9 @@ if($LASTEXITCODE -ne 0) { throw 'Recipe browser tests failed' }
 $env:SULFUR_TEST_GAME_ROOT=$GameRoot
 dotnet run --project "$PSScriptRoot\src\InventoryRedux\tests\Validation.csproj" "-p:GameRoot=$GameRoot" -- "$PSScriptRoot\build\InventoryRedux.dll"
 if($LASTEXITCODE -ne 0) { throw 'Inventory Redux tests failed' }
+dotnet run --project "$PSScriptRoot\src\TraderFramework\tests\Validation.csproj" "-p:GameRoot=$GameRoot" -- "$PSScriptRoot\build" $GameRoot
+if($LASTEXITCODE -ne 0) { throw 'Trader Framework tests failed' }
+if(Test-Path -LiteralPath "$GameRoot\BepInEx\plugins\Rummage.dll") {
+    dotnet run --project "$PSScriptRoot\src\RummageInventoryReduxCompat\tests\Validation.csproj" "-p:GameRoot=$GameRoot" -- "$PSScriptRoot\build\InventoryRedux.RummageCompat.dll"
+    if($LASTEXITCODE -ne 0) { throw 'Rummage compatibility tests failed' }
+}

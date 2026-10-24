@@ -84,6 +84,7 @@ namespace LocalSulfur.UnifiedInventory
             var hovered=Hovered();bool shift=k.leftShiftKey.isPressed||k.rightShiftKey.isPressed;
             if(splitPress&&!GroupDragging)
             {
+                if(MerchantBridge.IsMerchantItem(ui.hoveredOrNavigatedInventoryItem))return;
                 if(hovered==null){Plugin.Instance.Report("Split input detected, but no managed grid was hit");return;}
                 var slot=hovered.GetSlotAt(hovered.GetGridPosition(mouse.position.ReadValue()));
                 Stacks.Split(slot==null?null:slot.ItemInSlot,!Controls.Held(Plugin.Instance.Settings.SingleModifier.Value));

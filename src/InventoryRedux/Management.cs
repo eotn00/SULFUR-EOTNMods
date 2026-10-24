@@ -55,7 +55,7 @@ namespace LocalSulfur.UnifiedInventory
                     foreach(var p in original)items[p.Key].SetToNewGridPosition(p.X,p.Y);
                     grid.RectTransform.sizeDelta=new Vector2(oldSize.x*grid.tileSize.x,oldSize.y*grid.tileSize.y);view.Layout();
                 }
-                catch(Exception rollback){Plugin.Fail(rollback);}
+                catch(Exception rollback){Plugin.TransactionFailed(new AggregateException("Resize rollback failed",error,rollback));return false;}
                 Plugin.Instance.Report("Resize rolled back: "+error);return false;
             }
             finally {view.Resizing=false;}
@@ -74,7 +74,7 @@ namespace LocalSulfur.UnifiedInventory
                 if(pos.x<0){skipped++;continue;}
                 int quantity=item.quantity;
                 if(Commit(new List<InventoryItem>{item},destination,new List<Vector2Int>{pos}))moved+=quantity;
-                else {skipped++;if(Plugin.Failed)break;}
+                else {skipped++;break;}
             }
             destination.GetComponent<Viewport>().FocusItems();
             return "已移动 / Moved: "+moved+"; 留在背包的堆 / Stacks remaining: "+skipped;
@@ -154,7 +154,7 @@ namespace LocalSulfur.UnifiedInventory
                     for(int n=0;n<items.Count;n++)
                         if(sources[n].GetSlotAt(origins[n]).ItemInSlot!=items[n])throw new InvalidOperationException("Rollback placement failed");
                 }
-                catch(Exception rollback){Plugin.Fail(rollback);}
+                catch(Exception rollback){Plugin.TransactionFailed(new AggregateException("Inventory move rollback failed",e,rollback));return false;}
                 Plugin.Instance.Report("Inventory operation rolled back: "+e.Message);return false;
             }
         }
